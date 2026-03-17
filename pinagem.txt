@@ -1,0 +1,19 @@
+============================================================
+  ESP32 DevKit-C V4 + DHT22 - Pinagem Física
+  Mestrado CIn-UFPE - João Veloso
+============================================================
+
+  ESP32 DevKit-C V4          DHT22
+  +-----------------+       +-------+
+  |                 |       | 1 VCC |----> 3.3V
+  |            3V3 -|----+--| 2 DAT |----> GPIO15
+  |          GPIO15-|----|  | 3 NC  |     (não conectado)
+  |            GND -|--+ +--| 4 GND |----> GND
+  |                 |  |    +-------+
+  +-----------------+  |
+                       +--- Resistor 10kΩ pull-up entre DAT e 3.3V
+
+  Conexões (apenas 3 fios + 1 resistor):
+    ESP32 3V3  ---> DHT22 pino 1 (VCC)
+    ESP32 GPIO15 -> DHT22 pino 2 (DAT) + resistor 10kΩ para 3.3V
+    ESP32 GND  ---> DHT22 pino 4 (GND)
