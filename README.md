@@ -21,55 +21,7 @@ A solucao utiliza um ESP32 com sensor DHT22 que coleta dados de temperatura e um
 
 ## Arquitetura
 
-```
-  ┌──────────────────────────────────────────────────────────────────────────┐
-  │                         CAMADA DE ANALISE                               │
-  │  ┌──────────────────┐  ┌──────────┐  ┌──────────────┐  ┌────────────┐  │
-  │  │ Monitor Eventos  │  │ Exportar │  │ Python/Pandas│  │  Analise   │  │
-  │  │ monitor_eventos  │  │   CSV    │──│  Matplotlib  │──│ Estatistica│  │
-  │  └───────┬──────────┘  └────▲─────┘  └──────────────┘  └────────────┘  │
-  │          │TCP check         │                                           │
-  └──────────┼──────────────────┼───────────────────────────────────────────┘
-             │                  │
-  ┌──────────┼──────────────────┼───────────────────────────────────────────┐
-  │          │    GOOGLE CLOUD PLATFORM (136.115.185.214)                   │
-  │          ▼                  │                                           │
-  │  ┌───────────┐  ┌────────────┐  ┌──────────┐  ┌─────────┐             │
-  │  │ Mosquitto │─>│  Python    │─>│ InfluxDB │─>│ Grafana │             │
-  │  │ MQTT 1883 │  │  Bridge    │  │   8086   │  │  3000   │             │
-  │  └─────┬─────┘  └────────────┘  └──────────┘  └─────────┘             │
-  │    ▲   │                              │                                │
-  │    │   │ MQTT Bridge (replicacao)     │ dados replicados               │
-  │  ┌─┴───┴───────┐                     │                                │
-  │  │ Injetor de  │                     │                                │
-  │  │   Falhas    │                     │                                │
-  │  │ stop/start  │                     │                                │
-  │  └─────────────┘                     │                                │
-  └──────────────────────────────────────┼────────────────────────────────┘
-                    ▲                    │
-                    │ MQTT Bridge        │
-                    ▼                    ▼
-  ┌──────────────────────────────────────────────────────────────────────┐
-  │          AMAZON WEB SERVICES (23.21.181.24)                         │
-  │                                                                      │
-  │  ┌───────────┐  ┌────────────┐  ┌──────────┐  ┌─────────┐          │
-  │  │ Mosquitto │─>│  Python    │─>│ InfluxDB │─>│ Grafana │          │
-  │  │ MQTT 1883 │  │  Bridge    │  │   8086   │  │  3000   │          │
-  │  └───────────┘  └────────────┘  └──────────┘  └─────────┘          │
-  └──────────────────────────────────────────────────────────────────────┘
-                    ▲
-                    │ WiFi / MQTT
-                    │ (primario: GCP, failover: AWS)
-  ┌─────────────────┴────────────────────────────────────────────────────┐
-  │                    CAMADA DE SENSORES                                │
-  │  ┌──────────────┐  ┌──────────┐  ┌──────────────────────────────┐   │
-  │  │ ESP32        │──│  DHT22   │  │ Metricas: Latencia | PDR     │   │
-  │  │ DevKit-C V4  │  │ Temp/Hum │  │ RSSI | Jitter | Consumo     │   │
-  │  │              │  └──────────┘  │ Disponibilidade | Failover   │   │
-  │  │  GPIO4=DHT   │               │ Seq# | Tempo Recuperacao     │   │
-  │  └──────────────┘               └──────────────────────────────┘   │
-  └────────────────────────────────────────────────────────────────────┘
-```
+![Arquitetura Multi-Cloud com Failover e Replicacao](artigo/01_arquitetura_multicloud.png)
 
 ---
 
@@ -166,6 +118,8 @@ As VMs possuem **MQTT Bridge** bidirecional, garantindo que dados enviados para 
 
 ## Injecao de Falhas
 
+![Sistema de Injecao de Falhas](artigo/02_injecao_falhas.png)
+
 O script `injetor_falhas.py` roda na GCP e simula falhas no broker MQTT baseado no **Algoritmo 6.1 (Falha e Reparo)**, utilizando distribuicao exponencial para gerar tempos aleatorios de:
 
 - **TTF (Time To Failure)**: tempo ate a proxima falha (media configuravel, default 5min)
@@ -180,6 +134,8 @@ O injetor para o servico Mosquitto (`systemctl stop`) para simular a falha e rei
 ---
 
 ## Monitoramento de Eventos
+
+![Sistema de Monitoramento de Eventos](artigo/03_monitoramento_eventos.png)
 
 O script `monitor_eventos.py` monitora o estado dos brokers MQTT (GCP e AWS) via TCP check e registra transicoes de estado baseado no **Algoritmo 6.2 (Monitoramento do Sistema)**:
 
@@ -197,6 +153,9 @@ A pasta `artigo/` contem assets para o artigo cientifico:
 
 | Arquivo | Descricao |
 |---|---|
+| `01_arquitetura_multicloud.png` | Diagrama da arquitetura multi-cloud com failover e replicacao |
+| `02_injecao_falhas.png` | Diagrama do sistema de injecao de falhas com linha do tempo |
+| `03_monitoramento_eventos.png` | Diagrama do sistema de monitoramento com maquina de estados |
 | `pseudocodigos.tex` | 3 algoritmos em LaTeX: Failover Multi-Cloud, Injecao de Falhas, Monitoramento |
 | `diagrama_arquitetura.md` | Diagramas em Mermaid: arquitetura completa, fluxo de dados, sequencia de falha |
 
@@ -213,10 +172,14 @@ esp32-iot-saude/
 ├── setup-aws.sh             # Script de instalacao da stack na EC2 AWS
 ├── sync_influx.py           # Sync de dados entre InfluxDBs (futuro)
 ├── pinagem.txt              # Referencia de pinagem ESP32 + DHT22
+├── gerar_diagramas.py       # Gera diagramas PNG para o artigo (Matplotlib)
 ├── README.md
 ├── artigo/
-│   ├── pseudocodigos.tex    # Algoritmos em LaTeX para o artigo
-│   └── diagrama_arquitetura.md  # Diagramas Mermaid da arquitetura
+│   ├── 01_arquitetura_multicloud.png  # Diagrama de arquitetura
+│   ├── 02_injecao_falhas.png          # Diagrama de injecao de falhas
+│   ├── 03_monitoramento_eventos.png   # Diagrama de monitoramento
+│   ├── pseudocodigos.tex              # Algoritmos em LaTeX
+│   └── diagrama_arquitetura.md        # Diagramas Mermaid
 └── dht_scan/
     └── dht_scan.ino         # Utilitario: scanner de GPIOs para DHT22
 ```
