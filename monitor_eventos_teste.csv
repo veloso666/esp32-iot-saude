@@ -1,0 +1,9 @@
+timestamp,servidor,evento,duracao_falha_ms,estado_gcp,estado_aws
+2026-03-18T16:27:33.129548Z,SISTEMA,INICIO_MONITORAMENTO,0,desconhecido,desconhecido
+2026-03-18T16:27:33.323547Z,GCP,OPERANDO_INICIAL,0,desconhecido,desconhecido
+2026-03-18T16:27:33.459554Z,AWS,OPERANDO_INICIAL,0,operando,desconhecido
+2026-03-18T16:29:13.485031Z,GCP,FALHA,0,nao_operando,operando
+2026-03-18T16:30:07.574409Z,GCP,REPARO,54089,nao_operando,operando
+2026-03-18T16:34:34.191006Z,GCP,FALHA,0,nao_operando,operando
+2026-03-18T16:36:40.495159Z,GCP,REPARO,126304,nao_operando,operando
+2026-03-18T16:38:07.512839Z,SISTEMA,FIM_MONITORAMENTO,0,operando,operando
