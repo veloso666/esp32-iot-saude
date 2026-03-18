@@ -1,5 +1,4 @@
-# Avaliação de desempenho de protocolos IoT aplicados no contexto médico 
-
+# IoT Saude - Monitoramento Multi-Cloud com Failover e Injecao de Falhas
 
 **Mestrado em Ciencia da Computacao - CIn/UFPE**
 **Joao Lucas Veloso | Orientador: Prof. Eduardo Tavares | Coorientador: Thiago Valentim**
@@ -148,6 +147,26 @@ Gera CSV com: `timestamp, servidor, evento, duracao_falha_ms, estado_gcp, estado
 
 ---
 
+## Resultados dos Experimentos
+
+### Timeline do Experimento
+
+![Timeline do Experimento](artigo/04_timeline_experimento.png)
+
+### Duracao das Falhas
+
+![Duracao das Falhas](artigo/05_duracao_falhas.png)
+
+### Disponibilidade ao Longo do Tempo
+
+![Disponibilidade](artigo/06_disponibilidade.png)
+
+### Resumo do Experimento
+
+![Resumo do Experimento](artigo/07_resumo_experimento.png)
+
+---
+
 ## Pseudocodigos e Diagramas (Artigo)
 
 A pasta `artigo/` contem assets para o artigo cientifico:
@@ -157,6 +176,10 @@ A pasta `artigo/` contem assets para o artigo cientifico:
 | `01_arquitetura_multicloud.png` | Diagrama da arquitetura multi-cloud com failover e replicacao |
 | `02_injecao_falhas.png` | Diagrama do sistema de injecao de falhas com linha do tempo |
 | `03_monitoramento_eventos.png` | Diagrama do sistema de monitoramento com maquina de estados |
+| `04_timeline_experimento.png` | Timeline dos estados dos servidores durante o experimento |
+| `05_duracao_falhas.png` | Grafico de barras com duracao de cada falha injetada |
+| `06_disponibilidade.png` | Grafico de disponibilidade do sistema ao longo do tempo |
+| `07_resumo_experimento.png` | Resumo com grafico pizza e tabela de metricas |
 | `pseudocodigos.tex` | 3 algoritmos em LaTeX: Failover Multi-Cloud, Injecao de Falhas, Monitoramento |
 | `diagrama_arquitetura.md` | Diagramas em Mermaid: arquitetura completa, fluxo de dados, sequencia de falha |
 
@@ -171,14 +194,22 @@ esp32-iot-saude/
 ├── monitor_eventos.py       # Monitoramento de eventos (Algoritmo 6.2)
 ├── mqtt_to_influx_aws.py    # Python Bridge (MQTT -> InfluxDB) para AWS
 ├── setup-aws.sh             # Script de instalacao da stack na EC2 AWS
-├── sync_influx.py           # Sync de dados entre InfluxDBs (futuro)
+├── sync_influx.py           # Sync de dados entre InfluxDBs (gap-filling)
+├── check_sync.py            # Verificacao de consistencia entre InfluxDBs
+├── setup_grafana.py         # Configuracao automatica do Grafana via API
+├── gerar_graficos_analise.py # Gera graficos de analise dos experimentos
 ├── pinagem.txt              # Referencia de pinagem ESP32 + DHT22
 ├── gerar_diagramas.py       # Gera diagramas PNG para o artigo (Matplotlib)
+├── monitor_eventos.csv      # Log de eventos do experimento
 ├── README.md
 ├── artigo/
 │   ├── 01_arquitetura_multicloud.png  # Diagrama de arquitetura
 │   ├── 02_injecao_falhas.png          # Diagrama de injecao de falhas
 │   ├── 03_monitoramento_eventos.png   # Diagrama de monitoramento
+│   ├── 04_timeline_experimento.png    # Timeline dos estados dos servidores
+│   ├── 05_duracao_falhas.png          # Duracao de cada falha injetada
+│   ├── 06_disponibilidade.png         # Disponibilidade ao longo do tempo
+│   ├── 07_resumo_experimento.png      # Resumo do experimento
 │   ├── pseudocodigos.tex              # Algoritmos em LaTeX
 │   └── diagrama_arquitetura.md        # Diagramas Mermaid
 └── dht_scan/
@@ -259,11 +290,13 @@ Os IPs sao fixos e nao mudam ao parar/ligar as VMs.
 
 ## Proximos Passos
 
-- [ ] Executar experimentos com injecao de falhas (34 min)
+- [x] Executar experimentos com injecao de falhas (34 min)
+- [x] Analise estatistica das metricas (Python/Matplotlib)
+- [x] Exportar dados para CSV e gerar graficos para o artigo
+- [x] Deploy do script de sincronizacao InfluxDB entre VMs
+- [x] Configurar Grafana com todas as metricas
+- [ ] Executar experimento longo (4h) com falhas maiores
 - [ ] Implementar protocolo LoRaWAN para comparativo
-- [ ] Analise estatistica das metricas (Python/Pandas/Matplotlib)
-- [ ] Exportar dados para CSV e gerar graficos para o artigo
-- [ ] Deploy do script de sincronizacao InfluxDB entre VMs
 - [ ] Escrita do artigo (14 paginas) com resultados comparativos
 
 ---
