@@ -2,102 +2,133 @@
 """
 InfluxDB Sync - IoT Saude Mestrado
 Sincroniza dados faltantes entre dois InfluxDBs.
-Roda via cron a cada 5 minutos em cada VM.
 
-Uso: python3 sync_influx.py <IP_REMOTO>
+Estrategia: pega o ultimo timestamp do remoto como ALVO fixo,
+busca o ultimo timestamp local, e puxa apenas os pontos entre
+o local e o alvo. Para quando alcanca o alvo.
+
+Na GCP: python3 sync_influx.py 23.21.181.24
+Na AWS: python3 sync_influx.py 136.115.185.214
 """
 
 import sys
 import logging
 from influxdb import InfluxDBClient
-from datetime import datetime
 
 DB_NAME = "iot_medico"
 MEASUREMENT = "metricas_iot"
-SYNC_WINDOW = "2h"
+CHUNK = 50
 
 logging.basicConfig(
     level=logging.INFO,
-    format="[%(asctime)s] %(message)s",
-    datefmt="%H:%M:%S"
+    format="[%(asctime)s] %(levelname)s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("/var/log/sync_influx.log", mode="a"),
+    ]
 )
 log = logging.getLogger("sync")
+TAG_KEYS = {"protocolo", "dispositivo", "localizacao", "cloud"}
 
-def get_points(client, label):
-    query = f"SELECT * FROM {MEASUREMENT} WHERE time > now() - {SYNC_WINDOW}"
+def get_last_time(client, label):
+    try:
+        result = client.query(f"SELECT * FROM {MEASUREMENT} ORDER BY time DESC LIMIT 1")
+        points = list(result.get_points())
+        if points:
+            return points[0]["time"]
+    except Exception as e:
+        log.error(f"{label}: erro - {e}")
+    return None
+
+def fetch_points(client, since, until, limit=5000):
+    query = f"SELECT * FROM {MEASUREMENT} WHERE time > '{since}' AND time <= '{until}' ORDER BY time ASC LIMIT {limit}"
     try:
         result = client.query(query)
-        points = list(result.get_points())
-        log.info(f"{label}: {len(points)} pontos na janela de {SYNC_WINDOW}")
-        return points
+        return list(result.get_points())
     except Exception as e:
-        log.error(f"{label}: erro na consulta - {e}")
+        log.error(f"Erro buscar: {e}")
         return []
 
-def points_to_timestamps(points):
-    return {p["time"] for p in points}
-
-def sync(remote_ip):
-    log.info(f"Iniciando sync: remoto={remote_ip}")
-
-    local = InfluxDBClient(host="localhost", port=8086, database=DB_NAME)
-    try:
-        remote = InfluxDBClient(host=remote_ip, port=8086, database=DB_NAME, timeout=10)
-        remote.ping()
-    except Exception as e:
-        log.error(f"Remoto {remote_ip} indisponivel: {e}")
-        return
-
-    remote_points = get_points(remote, f"remoto({remote_ip})")
-    if not remote_points:
-        log.info("Nada para sincronizar")
-        return
-
-    local_points = get_points(local, "local")
-    local_times = points_to_timestamps(local_points)
-
-    missing = [p for p in remote_points if p["time"] not in local_times]
-    log.info(f"Pontos faltantes no local: {len(missing)}")
-
-    if not missing:
-        log.info("Tudo sincronizado!")
-        return
-
-    tag_keys = {"protocolo", "dispositivo", "localizacao", "cloud"}
+def write_points(client, points):
     batch = []
-    for p in missing:
-        tags = {k: v for k, v in p.items() if k in tag_keys and v is not None}
-        fields = {k: v for k, v in p.items() if k not in tag_keys and k != "time" and v is not None}
-
-        float_fields = {}
-        for k, v in fields.items():
+    for p in points:
+        tags = {k: v for k, v in p.items() if k in TAG_KEYS and v is not None}
+        fields = {}
+        for k, v in p.items():
+            if k in TAG_KEYS or k == "time" or v is None:
+                continue
             try:
-                float_fields[k] = float(v)
+                fields[k] = float(v)
             except (ValueError, TypeError):
-                float_fields[k] = v
-
-        if float_fields:
+                fields[k] = v
+        if fields:
             batch.append({
                 "measurement": MEASUREMENT,
                 "tags": tags,
                 "time": p["time"],
-                "fields": float_fields
+                "fields": fields
             })
 
-    if batch:
-        CHUNK = 100
-        written = 0
-        for i in range(0, len(batch), CHUNK):
-            chunk = batch[i:i+CHUNK]
-            try:
-                local.write_points(chunk, batch_size=CHUNK)
-                written += len(chunk)
-            except Exception as e:
-                log.error(f"Erro no lote {i//CHUNK}: {e}")
-        log.info(f"Sincronizados {written}/{len(batch)} pontos")
+    written = 0
+    for i in range(0, len(batch), CHUNK):
+        try:
+            client.write_points(batch[i:i+CHUNK], batch_size=CHUNK)
+            written += len(batch[i:i+CHUNK])
+        except Exception as e:
+            log.error(f"Erro escrita: {e}")
+    return written
+
+def sync(remote_ip):
+    log.info(f"=== Sync iniciado: remoto={remote_ip} ===")
+
+    local = InfluxDBClient(host="localhost", port=8086, database=DB_NAME, timeout=15)
+    try:
+        remote = InfluxDBClient(host=remote_ip, port=8086, database=DB_NAME, timeout=15)
+        remote.ping()
+        log.info(f"Remoto {remote_ip} acessivel")
+    except Exception as e:
+        log.warning(f"Remoto {remote_ip} indisponivel: {e}")
+        return
+
+    last_local = get_last_time(local, "local")
+    last_remote = get_last_time(remote, "remoto")
+
+    if not last_remote:
+        log.info("Remoto sem dados")
+        return
+
+    log.info(f"Local:  {last_local or 'sem dados'}")
+    log.info(f"Remoto: {last_remote}")
+
+    if last_local and last_local >= last_remote:
+        log.info("Local ja esta atualizado. Nada a fazer.")
+        return
+
+    alvo = last_remote
+    cursor = last_local or "1970-01-01T00:00:00Z"
+
+    log.info(f"Sincronizando de {cursor} ate {alvo}...")
+
+    total = 0
+    while True:
+        points = fetch_points(remote, cursor, alvo)
+        if not points:
+            break
+        written = write_points(local, points)
+        total += written
+        cursor = points[-1]["time"]
+        log.info(f"  +{written} pontos (total: {total}, cursor: {cursor})")
+
+        if cursor >= alvo:
+            break
+
+    log.info(f"=== Sync finalizado: {total} pontos sincronizados ===")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print(f"Uso: {sys.argv[0]} <IP_REMOTO>")
+        print(f"  GCP: {sys.argv[0]} 23.21.181.24")
+        print(f"  AWS: {sys.argv[0]} 136.115.185.214")
         sys.exit(1)
     sync(sys.argv[1])
