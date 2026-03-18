@@ -1,0 +1,158 @@
+% ============================================================
+% Pseudocodigos para o Artigo - IoT Saude Mestrado
+% CIn-UFPE - Joao Veloso
+%
+% Requer: \usepackage{algorithm}
+%         \usepackage{algorithmic}
+%         (ou algpseudocode para algorithmicx)
+% ============================================================
+
+% Para usar no seu documento principal, adicione ao preambulo:
+% \usepackage{algorithm}
+% \usepackage{algorithmic}
+% E inclua este arquivo com: \input{pseudocodigos.tex}
+
+% ============================================================
+% ALGORITMO 1: Failover Multi-Cloud (ESP32)
+% ============================================================
+\begin{algorithm}[H]
+\caption{Failover Multi-Cloud com M\'{e}tricas de Confiabilidade}
+\label{alg:failover}
+\begin{algorithmic}[1]
+\REQUIRE Lista de servidores $S = \{s_1, s_2, \ldots, s_n\}$, limiar de falhas $F_{max}$, intervalo de verifica\c{c}\~{a}o $I_{check}$
+\ENSURE Conex\~{a}o cont\'{i}nua via MQTT com failover autom\'{a}tico
+
+\STATE $s_{atual} \leftarrow s_1$ \COMMENT{servidor prim\'{a}rio}
+\STATE $falhas \leftarrow 0$
+\STATE $seq \leftarrow 0$
+\STATE $t_{inicio} \leftarrow \text{tempo\_atual()}$
+\STATE $t_{operando} \leftarrow 0$
+\STATE $lat_{anterior} \leftarrow 0$
+
+\WHILE{verdadeiro}
+    \IF{$\neg$conectado($s_{atual}$)}
+        \STATE $t_{falha} \leftarrow \text{tempo\_atual()}$
+        \WHILE{$\neg$conectado($s_{atual}$)}
+            \STATE $falhas \leftarrow falhas + 1$
+            \STATE $falhas\_srv[s_{atual}] \leftarrow falhas\_srv[s_{atual}] + 1$
+            \IF{$falhas \geq F_{max}$}
+                \STATE $s_{anterior} \leftarrow s_{atual}$
+                \STATE $s_{atual} \leftarrow$ pr\'{o}ximo\_servidor($S$, $s_{atual}$)
+                \STATE $t_{failover} \leftarrow \text{tempo\_atual()} - t_{falha}$
+                \STATE $failovers \leftarrow failovers + 1$
+                \STATE $falhas \leftarrow 0$
+            \ENDIF
+            \STATE aguardar(1s)
+        \ENDWHILE
+        \STATE $t_{operando} \leftarrow t_{operando} + (\text{tempo\_atual()} - t_{falha})$
+    \ENDIF
+
+    \IF{$s_{atual} \neq s_1$ \AND $\text{tempo\_atual()} - t_{check} \geq I_{check}$}
+        \IF{testar\_conexao($s_1$)}
+            \STATE $t_{recuperacao} \leftarrow \text{tempo\_atual()} - t_{falha\_primario}$
+            \STATE $s_{atual} \leftarrow s_1$
+            \STATE $failovers \leftarrow failovers + 1$
+        \ENDIF
+        \STATE $t_{check} \leftarrow \text{tempo\_atual()}$
+    \ENDIF
+
+    \STATE $seq \leftarrow seq + 1$
+    \STATE $dados \leftarrow$ coletar\_sensores()
+    \STATE $t_1 \leftarrow \text{tempo\_atual()}$
+    \STATE publicar($s_{atual}$, $dados$, $seq$)
+    \STATE $lat \leftarrow \text{tempo\_atual()} - t_1$
+    \STATE $jitter \leftarrow |lat - lat_{anterior}|$
+    \STATE $lat_{anterior} \leftarrow lat$
+    \STATE $ok\_srv[s_{atual}] \leftarrow ok\_srv[s_{atual}] + 1$
+    \STATE $disp \leftarrow \frac{t_{operando}}{\text{tempo\_atual()} - t_{inicio}} \times 100$
+\ENDWHILE
+\end{algorithmic}
+\end{algorithm}
+
+% ============================================================
+% ALGORITMO 2: Injecao de Falhas (Falha e Reparo)
+% ============================================================
+\begin{algorithm}[H]
+\caption{Inje\c{c}\~{a}o de Falhas baseada em Distribui\c{c}\~{a}o Exponencial}
+\label{alg:injecao}
+\begin{algorithmic}[1]
+\REQUIRE Tempo m\'{a}ximo $T_{max}$, m\'{e}dia TTF $\mu_{TTF}$, m\'{e}dia TTR $\mu_{TTR}$
+\ENSURE Log de eventos de falha e reparo com timestamps
+
+\STATE $t_{atual} \leftarrow 0$
+\STATE $ciclo \leftarrow 0$
+\STATE registrar\_evento(\texttt{INICIO}, $T_{max}$, $\mu_{TTF}$, $\mu_{TTR}$)
+
+\WHILE{$t_{atual} < T_{max}$}
+    \STATE $ciclo \leftarrow ciclo + 1$
+    \STATE $TTF \leftarrow \text{gerar\_exponencial}(\mu_{TTF})$
+    \STATE $TTF \leftarrow \max(10, \min(TTF, T_{max} - t_{atual}))$
+    \STATE registrar\_evento(\texttt{OPERANDO}, $ciclo$, $TTF$)
+    \STATE aguardar($TTF$)
+    \STATE $t_{atual} \leftarrow t_{atual} + TTF$
+
+    \IF{$t_{atual} \geq T_{max}$}
+        \STATE \textbf{break}
+    \ENDIF
+
+    \STATE executar(\texttt{systemctl stop mosquitto})
+    \STATE registrar\_evento(\texttt{FALHA\_INJETADA}, $ciclo$)
+
+    \STATE $TTR \leftarrow \text{gerar\_exponencial}(\mu_{TTR})$
+    \STATE $TTR \leftarrow \max(5, \min(TTR, T_{max} - t_{atual}))$
+    \STATE aguardar($TTR$)
+    \STATE $t_{atual} \leftarrow t_{atual} + TTR$
+
+    \STATE executar(\texttt{systemctl start mosquitto})
+    \STATE registrar\_evento(\texttt{REPARO}, $ciclo$, $TTR$)
+\ENDWHILE
+
+\STATE registrar\_evento(\texttt{FIM}, $ciclo$, $t_{atual}$)
+\end{algorithmic}
+\end{algorithm}
+
+\vspace{0.3cm}
+\noindent
+\textbf{Nota:} A fun\c{c}\~{a}o $\text{gerar\_exponencial}(\mu)$ retorna um valor aleat\'{o}rio seguindo distribui\c{c}\~{a}o exponencial com m\'{e}dia $\mu$, calculado como $-\mu \cdot \ln(1 - U)$, onde $U \sim \text{Uniforme}(0,1)$.
+
+% ============================================================
+% ALGORITMO 3: Monitoramento de Eventos
+% ============================================================
+\begin{algorithm}[H]
+\caption{Monitoramento de Estado do Sistema}
+\label{alg:monitoramento}
+\begin{algorithmic}[1]
+\REQUIRE Lista de servidores $S = \{s_1, s_2, \ldots, s_n\}$, intervalo de verifica\c{c}\~{a}o $\Delta t$
+\ENSURE CSV com eventos de falha e reparo por servidor
+
+\FORALL{$s_i \in S$}
+    \STATE $estado[s_i] \leftarrow \text{desconhecido}$
+    \STATE $t_{falha}[s_i] \leftarrow \text{nulo}$
+\ENDFOR
+\STATE registrar(\texttt{INICIO\_MONITORAMENTO})
+
+\WHILE{verdadeiro}
+    \FORALL{$s_i \in S$}
+        \STATE $conectado \leftarrow$ testar\_conexao\_tcp($s_i$, 1883)
+
+        \IF{$conectado$}
+            \IF{$estado[s_i] \neq \text{operando}$}
+                \IF{$t_{falha}[s_i] \neq \text{nulo}$}
+                    \STATE $duracao \leftarrow \text{tempo\_atual()} - t_{falha}[s_i]$
+                    \STATE $t_{falha}[s_i] \leftarrow \text{nulo}$
+                \ENDIF
+                \STATE $estado[s_i] \leftarrow \text{operando}$
+                \STATE registrar(\texttt{REPARO}, $s_i$, $duracao$)
+            \ENDIF
+        \ELSE
+            \IF{$estado[s_i] = \text{operando}$ \OR $estado[s_i] = \text{desconhecido}$}
+                \STATE $estado[s_i] \leftarrow \text{nao\_operando}$
+                \STATE $t_{falha}[s_i] \leftarrow \text{tempo\_atual()}$
+                \STATE registrar(\texttt{FALHA}, $s_i$)
+            \ENDIF
+        \ENDIF
+    \ENDFOR
+    \STATE aguardar($\Delta t$)
+\ENDWHILE
+\end{algorithmic}
+\end{algorithm}
