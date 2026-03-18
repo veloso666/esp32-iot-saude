@@ -1,4 +1,4 @@
-# IoT Saude - Monitoramento com ESP32 e MQTT
+# IoT Saude - Monitoramento Multi-Cloud com Failover e Injecao de Falhas
 
 **Mestrado em Ciencia da Computacao - CIn/UFPE**
 **Joao Lucas Veloso | Orientador: Prof. Eduardo Tavares | Coorientador: Thiago Valentim**
@@ -7,55 +7,68 @@
 
 ## Sobre o Projeto
 
-Este projeto implementa uma arquitetura IoT para monitoramento de dados de saude em tempo real, com foco na **analise comparativa de protocolos de comunicacao** (WiFi, LoRaWAN) a partir de metricas de desempenho como **latencia, PDR (Packet Delivery Rate), RSSI e consumo energetico**.
+Este projeto implementa uma arquitetura IoT para monitoramento de dados de saude em tempo real, com foco na **analise comparativa de protocolos de comunicacao** (WiFi, LoRaWAN) a partir de metricas de desempenho e confiabilidade.
 
-A arquitetura utiliza um ESP32 com sensor DHT22 que coleta dados de temperatura e umidade, transmitindo via MQTT para uma infraestrutura em nuvem multi-cloud com failover automatico.
+A solucao utiliza um ESP32 com sensor DHT22 que coleta dados de temperatura e umidade, transmitindo via MQTT para uma infraestrutura **multi-cloud (GCP + AWS)** com:
+
+- **Failover automatico** entre servidores MQTT
+- **Replicacao bidirecional** de dados via MQTT Bridge
+- **Injecao de falhas programatica** para validacao de resiliencia
+- **Monitoramento de eventos** com registro de falhas e reparos
+- **Metricas avancadas de confiabilidade**: jitter, disponibilidade, tempo de failover/recuperacao, deteccao de duplicatas
 
 ---
 
 ## Arquitetura
 
 ```
-                                    ┌─────────────────────────────┐
-                                    │     GOOGLE CLOUD PLATFORM   │
-                                    │     34.69.204.126           │
-  ┌──────────────┐    WiFi/MQTT     │  ┌───────────┐             │
-  │  ESP32       │─────────────────>│  │ Mosquitto │             │
-  │  DevKit-C V4 │    failover      │  │ Port 1883 │             │
-  │  + DHT22     │─ ─ ─ ─ ─ ─ ─ ┐  │  └─────┬─────┘             │
-  └──────────────┘               │  │        │                    │
-    Metricas:                    │  │  ┌─────▼─────┐             │
-    - Temperatura                │  │  │  Python   │             │
-    - Umidade                    │  │  │  Bridge   │             │
-    - Latencia                   │  │  └─────┬─────┘             │
-    - PDR                        │  │        │                    │
-    - RSSI                       │  │  ┌─────▼─────┐ ┌─────────┐│
-    - Consumo                    │  │  │ InfluxDB  │ │ Grafana ││
-                                 │  │  │ Port 8086 │ │ Port 3000││
-                                 │  │  └───────────┘ └─────────┘│
-                                 │  │         ▲                   │
-                                 │  │         │ MQTT Bridge       │
-                                 │  │         ▼                   │
-                                 │  └─────────────────────────────┘
-                                 │
-                                 │  ┌─────────────────────────────┐
-                                 │  │     AMAZON WEB SERVICES     │
-                                 │  │     100.31.105.129          │
-                                 └─>│  ┌───────────┐             │
-                                    │  │ Mosquitto │             │
-                                    │  │ Port 1883 │             │
-                                    │  └─────┬─────┘             │
-                                    │        │                    │
-                                    │  ┌─────▼─────┐             │
-                                    │  │  Python   │             │
-                                    │  │  Bridge   │             │
-                                    │  └─────┬─────┘             │
-                                    │        │                    │
-                                    │  ┌─────▼─────┐ ┌─────────┐│
-                                    │  │ InfluxDB  │ │ Grafana ││
-                                    │  │ Port 8086 │ │ Port 3000││
-                                    │  └───────────┘ └─────────┘│
-                                    └─────────────────────────────┘
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │                         CAMADA DE ANALISE                               │
+  │  ┌──────────────────┐  ┌──────────┐  ┌──────────────┐  ┌────────────┐  │
+  │  │ Monitor Eventos  │  │ Exportar │  │ Python/Pandas│  │  Analise   │  │
+  │  │ monitor_eventos  │  │   CSV    │──│  Matplotlib  │──│ Estatistica│  │
+  │  └───────┬──────────┘  └────▲─────┘  └──────────────┘  └────────────┘  │
+  │          │TCP check         │                                           │
+  └──────────┼──────────────────┼───────────────────────────────────────────┘
+             │                  │
+  ┌──────────┼──────────────────┼───────────────────────────────────────────┐
+  │          │    GOOGLE CLOUD PLATFORM (136.115.185.214)                   │
+  │          ▼                  │                                           │
+  │  ┌───────────┐  ┌────────────┐  ┌──────────┐  ┌─────────┐             │
+  │  │ Mosquitto │─>│  Python    │─>│ InfluxDB │─>│ Grafana │             │
+  │  │ MQTT 1883 │  │  Bridge    │  │   8086   │  │  3000   │             │
+  │  └─────┬─────┘  └────────────┘  └──────────┘  └─────────┘             │
+  │    ▲   │                              │                                │
+  │    │   │ MQTT Bridge (replicacao)     │ dados replicados               │
+  │  ┌─┴───┴───────┐                     │                                │
+  │  │ Injetor de  │                     │                                │
+  │  │   Falhas    │                     │                                │
+  │  │ stop/start  │                     │                                │
+  │  └─────────────┘                     │                                │
+  └──────────────────────────────────────┼────────────────────────────────┘
+                    ▲                    │
+                    │ MQTT Bridge        │
+                    ▼                    ▼
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │          AMAZON WEB SERVICES (23.21.181.24)                         │
+  │                                                                      │
+  │  ┌───────────┐  ┌────────────┐  ┌──────────┐  ┌─────────┐          │
+  │  │ Mosquitto │─>│  Python    │─>│ InfluxDB │─>│ Grafana │          │
+  │  │ MQTT 1883 │  │  Bridge    │  │   8086   │  │  3000   │          │
+  │  └───────────┘  └────────────┘  └──────────┘  └─────────┘          │
+  └──────────────────────────────────────────────────────────────────────┘
+                    ▲
+                    │ WiFi / MQTT
+                    │ (primario: GCP, failover: AWS)
+  ┌─────────────────┴────────────────────────────────────────────────────┐
+  │                    CAMADA DE SENSORES                                │
+  │  ┌──────────────┐  ┌──────────┐  ┌──────────────────────────────┐   │
+  │  │ ESP32        │──│  DHT22   │  │ Metricas: Latencia | PDR     │   │
+  │  │ DevKit-C V4  │  │ Temp/Hum │  │ RSSI | Jitter | Consumo     │   │
+  │  │              │  └──────────┘  │ Disponibilidade | Failover   │   │
+  │  │  GPIO4=DHT   │               │ Seq# | Tempo Recuperacao     │   │
+  │  └──────────────┘               └──────────────────────────────┘   │
+  └────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -74,50 +87,62 @@ A arquitetura utiliza um ESP32 com sensor DHT22 que coleta dados de temperatura 
 |---|---|
 | **WiFi 802.11** | Implementado |
 | **LoRaWAN** | Futuro |
-| **Sigfox / 6LoWPAN** | Futuro |
 
-### Infraestrutura Cloud (Multi-Cloud)
-| Servico | Descricao | GCP | AWS |
+### Infraestrutura Cloud (Multi-Cloud com IPs Estaticos)
+| Servico | Descricao | GCP (136.115.185.214) | AWS (23.21.181.24) |
 |---|---|---|---|
 | **Mosquitto** | Broker MQTT | Porta 1883 | Porta 1883 |
 | **Python Bridge** | MQTT to InfluxDB | Rodando | Rodando |
 | **InfluxDB** | Time Series DB | Porta 8086 | Porta 8086 |
 | **Grafana** | Dashboard | Porta 3000 | Porta 3000 |
+| **MQTT Bridge** | Replicacao bidirecional | Configurado | Configurado |
 
 ---
 
 ## Metricas Coletadas
 
-O ESP32 envia dados em **InfluxDB Line Protocol** via MQTT:
+O ESP32 envia dados em **InfluxDB Line Protocol** via MQTT com **22 campos**:
 
 ```
 metricas_iot,protocolo=WiFi,dispositivo=ESP32_Real,localizacao=UTI-01,cloud=GCP
-  temperatura=21.7,
-  umidade=69.0,
-  freq_cardiaca=77,       (simulado)
-  saturacao_o2=97,        (simulado)
-  rssi=-66,
-  consumo_ma=160.0,
-  latencia=23,
-  pacotes_enviados=10928,
-  pacotes_confirmados=10926,
-  dht_simulado=0,
-  failovers=2
+  temperatura=21.7,umidade=69.0,freq_cardiaca=77,saturacao_o2=97,
+  rssi=-66,consumo_ma=160.0,latencia=23,
+  pacotes_enviados=10928,pacotes_confirmados=10926,
+  dht_simulado=0,failovers=2,
+  seq=10928,jitter=3,disponibilidade=99.85,
+  tempo_failover=3200,tempo_recuperacao=62000,
+  ok_gcp=9500,ok_aws=1426,fail_gcp=6,fail_aws=0
 ```
 
+### Metricas de Sensores
 | Metrica | Fonte | Descricao |
 |---|---|---|
 | `temperatura` | DHT22 (real) | Temperatura ambiente em Celsius |
 | `umidade` | DHT22 (real) | Umidade relativa em % |
 | `freq_cardiaca` | Simulado | Frequencia cardiaca (bpm) |
 | `saturacao_o2` | Simulado | Saturacao de oxigenio (%) |
+
+### Metricas de Desempenho
+| Metrica | Fonte | Descricao |
+|---|---|---|
 | `rssi` | ESP32 (real) | Intensidade do sinal WiFi (dBm) |
 | `consumo_ma` | Estimativa | Consumo energetico (mA) |
 | `latencia` | ESP32 (real) | Tempo de envio MQTT (ms) |
+| `jitter` | ESP32 (real) | Variacao absoluta entre latencias consecutivas (ms) |
 | `pacotes_enviados` | ESP32 (real) | Total de pacotes TX |
-| `pacotes_confirmados` | ESP32 (real) | Total de pacotes confirmados |
+| `pacotes_confirmados` | ESP32 (real) | Total de pacotes confirmados (PDR) |
+
+### Metricas de Confiabilidade
+| Metrica | Fonte | Descricao |
+|---|---|---|
+| `disponibilidade` | ESP32 (real) | % do tempo em que o sistema esta operando |
+| `tempo_failover` | ESP32 (real) | Tempo da deteccao da falha ate reconexao no backup (ms) |
+| `tempo_recuperacao` | ESP32 (real) | Tempo da falha ate retorno ao servidor primario (ms) |
+| `failovers` | ESP32 (real) | Numero total de trocas de servidor |
+| `seq` | ESP32 (real) | Numero sequencial para deteccao de duplicatas/gaps |
+| `ok_gcp` / `ok_aws` | ESP32 (real) | Pacotes confirmados por servidor |
+| `fail_gcp` / `fail_aws` | ESP32 (real) | Falhas de conexao por servidor |
 | `dht_simulado` | ESP32 | 0 = dado real, 1 = fallback simulado |
-| `failovers` | ESP32 (real) | Numero de trocas de servidor |
 
 ---
 
@@ -125,14 +150,55 @@ metricas_iot,protocolo=WiFi,dispositivo=ESP32_Real,localizacao=UTI-01,cloud=GCP
 
 O ESP32 implementa failover automatico entre GCP e AWS:
 
-1. **Conexao primaria**: Google Cloud Platform (34.69.204.126)
-2. **Apos 3 falhas consecutivas**: muda para AWS (100.31.105.129)
+1. **Conexao primaria**: Google Cloud Platform (136.115.185.214)
+2. **Apos 3 falhas consecutivas**: troca para AWS (23.21.181.24), mede `tempo_failover`
 3. **A cada 60 segundos**: tenta reconectar ao servidor primario
-4. **Retorno automatico**: quando GCP volta, ESP32 reconecta
+4. **Retorno automatico**: quando GCP volta, reconecta e mede `tempo_recuperacao`
+5. **Disponibilidade**: calculada continuamente como `(tempo_operando / tempo_total) * 100`
 
-### MQTT Bridge
+### MQTT Bridge (Replicacao)
 
-As VMs possuem **MQTT Bridge** bidirecional, garantindo que dados enviados para uma VM sejam replicados para a outra em tempo real.
+As VMs possuem **MQTT Bridge** bidirecional, garantindo que dados enviados para uma VM sejam replicados para a outra em tempo real. Topicos replicados:
+- `iot-saude-mestrado/#`
+- `hospital/#`
+
+---
+
+## Injecao de Falhas
+
+O script `injetor_falhas.py` roda na GCP e simula falhas no broker MQTT baseado no **Algoritmo 6.1 (Falha e Reparo)**, utilizando distribuicao exponencial para gerar tempos aleatorios de:
+
+- **TTF (Time To Failure)**: tempo ate a proxima falha (media configuravel, default 5min)
+- **TTR (Time To Repair)**: tempo de duracao da falha (media configuravel, default 1min)
+
+```
+sudo python3 injetor_falhas.py --tempo-max 34 --ttf-media 300 --ttr-media 60
+```
+
+O injetor para o servico Mosquitto (`systemctl stop`) para simular a falha e reinicia (`systemctl start`) para simular o reparo, registrando todos os eventos em CSV.
+
+---
+
+## Monitoramento de Eventos
+
+O script `monitor_eventos.py` monitora o estado dos brokers MQTT (GCP e AWS) via TCP check e registra transicoes de estado baseado no **Algoritmo 6.2 (Monitoramento do Sistema)**:
+
+```
+python3 monitor_eventos.py --intervalo 2 --log monitor_eventos.csv
+```
+
+Gera CSV com: `timestamp, servidor, evento, duracao_falha_ms, estado_gcp, estado_aws`
+
+---
+
+## Pseudocodigos e Diagramas (Artigo)
+
+A pasta `artigo/` contem assets para o artigo cientifico:
+
+| Arquivo | Descricao |
+|---|---|
+| `pseudocodigos.tex` | 3 algoritmos em LaTeX: Failover Multi-Cloud, Injecao de Falhas, Monitoramento |
+| `diagrama_arquitetura.md` | Diagramas em Mermaid: arquitetura completa, fluxo de dados, sequencia de falha |
 
 ---
 
@@ -140,14 +206,19 @@ As VMs possuem **MQTT Bridge** bidirecional, garantindo que dados enviados para 
 
 ```
 esp32-iot-saude/
-├── esp32-iot-saude.ino    # Codigo principal do ESP32 (failover GCP/AWS)
-├── mqtt_to_influx_aws.py  # Python Bridge (MQTT -> InfluxDB) para AWS
-├── setup-aws.sh           # Script de instalacao da stack na EC2 AWS
-├── sync_influx.py         # Sync de dados entre InfluxDBs (futuro)
-├── pinagem.txt            # Referencia de pinagem ESP32 + DHT22
-├── dht_scan/
-│   └── dht_scan.ino       # Utilitario: scanner de GPIOs para DHT22
-└── README.md
+├── esp32-iot-saude.ino      # Firmware ESP32 (failover + 22 metricas)
+├── injetor_falhas.py        # Injecao de falhas (Algoritmo 6.1)
+├── monitor_eventos.py       # Monitoramento de eventos (Algoritmo 6.2)
+├── mqtt_to_influx_aws.py    # Python Bridge (MQTT -> InfluxDB) para AWS
+├── setup-aws.sh             # Script de instalacao da stack na EC2 AWS
+├── sync_influx.py           # Sync de dados entre InfluxDBs (futuro)
+├── pinagem.txt              # Referencia de pinagem ESP32 + DHT22
+├── README.md
+├── artigo/
+│   ├── pseudocodigos.tex    # Algoritmos em LaTeX para o artigo
+│   └── diagrama_arquitetura.md  # Diagramas Mermaid da arquitetura
+└── dht_scan/
+    └── dht_scan.ino         # Utilitario: scanner de GPIOs para DHT22
 ```
 
 ---
@@ -167,9 +238,10 @@ ESP32 GND    ---> DHT22 pino 4 (GND)
 ### Pre-requisitos
 - Arduino IDE com suporte ESP32
 - Bibliotecas: `PubSubClient`, `DHT sensor library` (Adafruit)
+- Python 3 (para injetor e monitor)
 
 ### 1. Configurar WiFi
-Editar `esp32-iot-saude.ino`, linhas 17-18:
+Editar `esp32-iot-saude.ino`:
 ```cpp
 const char* ssid     = "SEU_WIFI";
 const char* password = "SUA_SENHA";
@@ -181,7 +253,21 @@ const char* password = "SUA_SENHA";
 3. Upload (Ctrl+U)
 4. Serial Monitor em 115200 baud
 
-### 3. Verificar dados
+### 3. Executar Experimento com Injecao de Falhas
+
+**Terminal 1** (PC local) - Monitor de eventos:
+```bash
+python3 monitor_eventos.py --intervalo 2 --log monitor_eventos.csv
+```
+
+**Terminal 2** (SSH na GCP) - Injetor de falhas:
+```bash
+sudo python3 injetor_falhas.py --tempo-max 34 --ttf-media 300 --ttr-media 60
+```
+
+**Terminal 3** (Arduino IDE) - Serial Monitor do ESP32 em 115200 baud
+
+### 4. Verificar dados
 ```bash
 # Na VM, ver dados MQTT em tempo real
 mosquitto_sub -t "iot-saude-mestrado/#" -v
@@ -190,19 +276,31 @@ mosquitto_sub -t "iot-saude-mestrado/#" -v
 influx -database iot_medico -execute "SELECT * FROM metricas_iot ORDER BY time DESC LIMIT 5"
 ```
 
-### 4. Grafana
-- GCP: `http://34.69.204.126:3000`
-- AWS: `http://100.31.105.129:3000`
+### 5. Grafana
+- GCP: `http://136.115.185.214:3000`
+- AWS: `http://23.21.181.24:3000`
+
+---
+
+## IPs Estaticos
+
+| Cloud | IP | Tipo |
+|---|---|---|
+| **GCP** | 136.115.185.214 | Static External IP |
+| **AWS** | 23.21.181.24 | Elastic IP |
+
+Os IPs sao fixos e nao mudam ao parar/ligar as VMs.
 
 ---
 
 ## Proximos Passos
 
+- [ ] Executar experimentos com injecao de falhas (34 min)
 - [ ] Implementar protocolo LoRaWAN para comparativo
-- [ ] Deploy do script de sincronizacao InfluxDB entre VMs
 - [ ] Analise estatistica das metricas (Python/Pandas/Matplotlib)
-- [ ] Exportar dados para CSV (Google Drive)
-- [ ] Escrita do artigo com resultados comparativos
+- [ ] Exportar dados para CSV e gerar graficos para o artigo
+- [ ] Deploy do script de sincronizacao InfluxDB entre VMs
+- [ ] Escrita do artigo (14 paginas) com resultados comparativos
 
 ---
 
