@@ -1,5 +1,4 @@
 # Avaliação de desempenho de protocolos IoT aplicados no contexto médico 
-<img width="1400" height="81" alt="image" src="https://github.com/user-attachments/assets/d178232e-0fb5-4edb-9eff-b444cc309977" />
 
 
 **Mestrado em Ciencia da Computacao - CIn/UFPE**
