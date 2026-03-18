@@ -1,4 +1,4 @@
-# IoT Saude - Monitoramento Multi-Cloud com Failover e Injecao de Falhas
+# Avaliacao de Desempenho de Protocolos IoT Aplicados no Contexto Medico
 
 **Mestrado em Ciencia da Computacao - CIn/UFPE**
 **Joao Lucas Veloso | Orientador: Prof. Eduardo Tavares | Coorientador: Thiago Valentim**
@@ -7,7 +7,7 @@
 
 ## Sobre o Projeto
 
-Este projeto implementa uma arquitetura IoT para monitoramento de dados de saude em tempo real, com foco na **analise comparativa de protocolos de comunicacao** (WiFi, LoRaWAN) a partir de metricas de desempenho e confiabilidade.
+Este projeto implementa uma arquitetura IoT para monitoramento de dados de saude em tempo real, com foco na **avaliacao de desempenho de protocolos de comunicacao** (WiFi, LoRaWAN) aplicados no contexto medico, a partir de metricas de desempenho e confiabilidade.
 
 A solucao utiliza um ESP32 com sensor DHT22 que coleta dados de temperatura e umidade, transmitindo via MQTT para uma infraestrutura **multi-cloud (GCP + AWS)** com:
 
