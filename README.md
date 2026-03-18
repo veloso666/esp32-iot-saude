@@ -147,13 +147,16 @@ Gera CSV com: `timestamp, servidor, evento, duracao_falha_ms, estado_gcp, estado
 
 ---
 
-## Resultados dos Experimentos
+## Resultados dos Experimentos (4 horas)
+
+Experimento de longa duracao com injecao de falhas aleatorias (TTF media: 10min, TTR media: 15min).
+Resultados: **9 falhas no GCP** (primario) e **7 falhas na AWS** (backup) ao longo de **242 minutos**.
 
 ### Timeline do Experimento
 
 ![Timeline do Experimento](artigo/04_timeline_experimento.png)
 
-### Duracao das Falhas
+### Duracao das Falhas (GCP e AWS)
 
 ![Duracao das Falhas](artigo/05_duracao_falhas.png)
 
@@ -291,11 +294,11 @@ Os IPs sao fixos e nao mudam ao parar/ligar as VMs.
 ## Proximos Passos
 
 - [x] Executar experimentos com injecao de falhas (34 min)
+- [x] Executar experimento longo (4h) com falhas maiores (9 falhas GCP, 7 falhas AWS)
 - [x] Analise estatistica das metricas (Python/Matplotlib)
 - [x] Exportar dados para CSV e gerar graficos para o artigo
 - [x] Deploy do script de sincronizacao InfluxDB entre VMs
 - [x] Configurar Grafana com todas as metricas
-- [ ] Executar experimento longo (4h) com falhas maiores
 - [ ] Implementar protocolo LoRaWAN para comparativo
 - [ ] Escrita do artigo (14 paginas) com resultados comparativos
 
