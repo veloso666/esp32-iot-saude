@@ -205,9 +205,10 @@ def grafico_disponibilidade(eventos):
     inicio, fim, duracao_s = calc_duracao_experimento(eventos)
     duracao_min = duracao_s / 60
 
-    fig, ax = plt.subplots(figsize=(16, 6))
+    fig, ax = plt.subplots(figsize=(16, 7))
     fig.patch.set_facecolor("white")
 
+    all_disp = []
     for servidor, cor, label in [("GCP", CORES["operando"], "Disponibilidade GCP"),
                                   ("AWS", CORES["aws_op"], "Disponibilidade AWS")]:
         srv_events = [e for e in eventos if e["servidor"] == servidor and
@@ -249,10 +250,13 @@ def grafico_disponibilidade(eventos):
         ax.plot(tempos, disponibilidades, color=cor, linewidth=2.5, label=label)
         ax.fill_between(tempos, disponibilidades, alpha=0.1, color=cor)
 
+        all_disp.extend(disponibilidades)
+
         if disponibilidades:
             disp_final = disponibilidades[-1]
-            ax.text(tempos[-1] - duracao_min * 0.05, disp_final - 1.5,
-                    f"{disp_final:.2f}%", fontsize=11, fontweight="bold", color=cor)
+            ax.annotate(f"{disp_final:.2f}%", xy=(tempos[-1], disp_final),
+                        xytext=(10, 5), textcoords="offset points",
+                        fontsize=11, fontweight="bold", color=cor)
 
     falha_num = 0
     for e in eventos:
@@ -260,16 +264,15 @@ def grafico_disponibilidade(eventos):
             falha_num += 1
             x = (e["timestamp"] - inicio).total_seconds() / 60
             ax.axvline(x, color=CORES["falha"], linestyle="--", alpha=0.3, linewidth=1)
-            ax.text(x, ax.get_ylim()[1] + 0.5, f"F{falha_num}", ha="center", fontsize=7,
-                    color=CORES["falha"], fontweight="bold")
 
     ax.set_xlabel("Tempo do experimento (minutos)", fontsize=12)
     ax.set_ylabel("Disponibilidade (%)", fontsize=12)
     ax.set_title(f"Disponibilidade ao Longo do Experimento ({duracao_min:.0f} min)",
                  fontsize=14, fontweight="bold", color=CORES["titulo"], pad=15)
     ax.set_xlim(0, duracao_min)
-    y_min = min(min(d for d in [100]) - 5, 85)
-    ax.set_ylim(y_min, 102)
+    y_min_val = min(all_disp) if all_disp else 0
+    y_min = max(0, y_min_val - 5)
+    ax.set_ylim(y_min, 105)
     ax.grid(color=CORES["grid"], linestyle="-", alpha=0.5)
     ax.legend(loc="lower left", fontsize=10, framealpha=0.9)
 
@@ -300,33 +303,37 @@ def grafico_resumo(eventos):
     dur_aws = [r["duracao_ms"] / 1000 for r in reparos_aws]
 
     has_aws = len(reparos_aws) > 0
-    ncols = 3 if has_aws else 2
-    ratios = [1, 1, 1.4] if has_aws else [1, 1.3]
 
-    fig, axes = plt.subplots(1, ncols, figsize=(20 if has_aws else 14, 8),
-                             gridspec_kw={"width_ratios": ratios})
+    fig = plt.figure(figsize=(16, 10))
     fig.patch.set_facecolor("white")
     fig.suptitle(f"Resumo do Experimento de Injecao de Falhas ({duracao_min:.0f} min)",
-                 fontsize=14, fontweight="bold", color=CORES["titulo"], y=1.02)
+                 fontsize=14, fontweight="bold", color=CORES["titulo"])
+
+    if has_aws:
+        ax_pie1 = fig.add_subplot(2, 2, 1)
+        ax_pie2 = fig.add_subplot(2, 2, 2)
+    else:
+        ax_pie1 = fig.add_subplot(1, 2, 1)
+
+    ax_tab = fig.add_subplot(2, 1, 2) if has_aws else fig.add_subplot(1, 2, 2)
 
     def draw_pie(ax, op_s, falha_s, label, cor_op, cor_falha):
         sizes = [op_s, falha_s]
         labels = [f"Operando\n{op_s/60:.1f}min", f"Em Falha\n{falha_s/60:.1f}min"]
         colors = [cor_op, cor_falha]
         wedges, texts, autotexts = ax.pie(sizes, labels=labels, colors=colors, explode=(0, 0.08),
-                                           autopct="%1.1f%%", startangle=90, textprops={"fontsize": 10},
+                                           autopct="%1.1f%%", startangle=90, textprops={"fontsize": 9},
                                            pctdistance=0.6)
         for t in autotexts:
             t.set_fontweight("bold")
-            t.set_fontsize(12)
+            t.set_fontsize(11)
             t.set_color("white")
-        ax.set_title(f"{label}", fontsize=12, fontweight="bold", pad=10)
+        ax.set_title(f"{label}", fontsize=11, fontweight="bold", pad=8)
 
-    draw_pie(axes[0], op_gcp_s, falha_gcp_s, "GCP (Primario)", CORES["operando"], CORES["falha"])
+    draw_pie(ax_pie1, op_gcp_s, falha_gcp_s, "GCP (Primario)", CORES["operando"], CORES["falha"])
     if has_aws:
-        draw_pie(axes[1], op_aws_s, falha_aws_s, "AWS (Backup)", CORES["aws_op"], CORES["aws_falha"])
+        draw_pie(ax_pie2, op_aws_s, falha_aws_s, "AWS (Backup)", CORES["aws_op"], CORES["aws_falha"])
 
-    ax_tab = axes[-1]
     ax_tab.axis("off")
 
     media_gcp = sum(dur_gcp) / len(dur_gcp) if dur_gcp else 0
@@ -335,66 +342,65 @@ def grafico_resumo(eventos):
 
     def fmt_dur(s):
         if s >= 60:
-            return f"{s:.0f}s ({s/60:.1f} min)"
+            return f"{s/60:.1f} min"
         return f"{s:.1f}s"
 
-    metricas = [
-        ("Duracao Total", f"{duracao_s:.0f}s ({duracao_min:.0f} min)"),
-        ("", ""),
-        ("--- GCP (Primario) ---", ""),
-        ("Falhas GCP", f"{len(reparos_gcp)}"),
-        ("Tempo em Falha GCP", fmt_dur(falha_gcp_s)),
-        ("Disponibilidade GCP", f"{disp_gcp:.2f}%"),
-        ("Duracao Media Falha", fmt_dur(media_gcp)),
-        ("Maior Falha GCP", fmt_dur(max_gcp)),
-        ("Menor Falha GCP", fmt_dur(min_gcp)),
+    col_gcp = [
+        f"{duracao_min:.0f} min",
+        f"{len(reparos_gcp)}",
+        fmt_dur(falha_gcp_s),
+        f"{disp_gcp:.2f}%",
+        fmt_dur(media_gcp),
+        fmt_dur(max_gcp),
+        fmt_dur(min_gcp),
     ]
 
     if has_aws:
         media_aws = sum(dur_aws) / len(dur_aws) if dur_aws else 0
-        max_aws = max(dur_aws) if dur_aws else 0
-        min_aws = min(dur_aws) if dur_aws else 0
-        metricas += [
-            ("", ""),
-            ("--- AWS (Backup) ---", ""),
-            ("Falhas AWS", f"{len(reparos_aws)}"),
-            ("Tempo em Falha AWS", fmt_dur(falha_aws_s)),
-            ("Disponibilidade AWS", f"{disp_aws:.2f}%"),
-            ("Duracao Media Falha", fmt_dur(media_aws)),
+        col_aws = [
+            f"{duracao_min:.0f} min",
+            f"{len(reparos_aws)}",
+            fmt_dur(falha_aws_s),
+            f"{disp_aws:.2f}%",
+            fmt_dur(media_aws),
+            fmt_dur(max(dur_aws)) if dur_aws else "-",
+            fmt_dur(min(dur_aws)) if dur_aws else "-",
         ]
+        cell_text = [[g, a] for g, a in zip(col_gcp, col_aws)]
+        col_labels = ["GCP", "AWS"]
+    else:
+        cell_text = [[g] for g in col_gcp]
+        col_labels = ["GCP"]
 
-    metricas = [(k, v) for k, v in metricas if k or v]
+    row_labels = ["Duracao", "Falhas", "Tempo Falha", "Disponibilidade",
+                  "Media Falha", "Maior Falha", "Menor Falha"]
 
     table = ax_tab.table(
-        cellText=[[v] for _, v in metricas],
-        rowLabels=[k for k, _ in metricas],
-        colLabels=["Valor"],
+        cellText=cell_text,
+        rowLabels=row_labels,
+        colLabels=col_labels,
         cellLoc="center",
         rowLoc="right",
         loc="center",
     )
     table.auto_set_font_size(False)
     table.set_fontsize(10)
-    table.scale(1.2, 1.6)
+    table.scale(1.0, 1.5)
 
     for (row, col), cell in table.get_celld().items():
         if row == 0:
             cell.set_facecolor(CORES["titulo"])
-            cell.set_text_props(color="white", fontweight="bold")
+            cell.set_text_props(color="white", fontweight="bold", fontsize=10)
         elif col == -1:
-            text = cell.get_text().get_text()
-            if text.startswith("---"):
-                cell.set_facecolor("#C5CAE9")
-                cell.set_text_props(fontweight="bold", fontsize=9)
-            else:
-                cell.set_facecolor("#E8EAF6")
-                cell.set_text_props(fontweight="bold", fontsize=9)
+            cell.set_facecolor("#E8EAF6")
+            cell.set_text_props(fontweight="bold", fontsize=9)
         else:
             cell.set_facecolor("#FAFAFA")
+            cell.set_text_props(fontsize=10)
 
-    ax_tab.set_title("Metricas do Experimento", fontsize=12, fontweight="bold", pad=10)
+    ax_tab.set_title("Metricas do Experimento", fontsize=11, fontweight="bold", pad=8)
 
-    fig.subplots_adjust(left=0.05, right=0.98, top=0.90, bottom=0.05, wspace=0.3)
+    fig.subplots_adjust(left=0.08, right=0.95, top=0.92, bottom=0.05, hspace=0.35, wspace=0.3)
     path = os.path.join(OUTPUT_DIR, "07_resumo_experimento.png")
     fig.savefig(path, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
