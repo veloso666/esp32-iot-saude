@@ -14,6 +14,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+import matplotlib.image as mpimg
 import os
 
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artigo")
@@ -96,211 +98,209 @@ def seta_dupla(ax, x1, y1, x2, y2, cor="#424242", largura=1.5, label=""):
 # DIAGRAMA 1: ARQUITETURA MULTI-CLOUD
 # ============================================================
 def gerar_arquitetura():
-    fig, ax = plt.subplots(1, 1, figsize=(18, 13))
+    fig, ax = plt.subplots(1, 1, figsize=(20, 14))
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.axis("off")
     fig.patch.set_facecolor("white")
 
-    # Titulo
-    ax.text(0.5, 0.98, "ARQUITETURA DO SISTEMA", ha="center", va="top",
-            fontsize=18, fontweight="bold", color=CORES["titulo"])
-    ax.text(0.5, 0.955, "Avaliacao de Desempenho de Protocolos IoT para Monitoramento de Saude",
-            ha="center", va="top", fontsize=10, color="#616161")
+    ICON_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artigo", "icons")
 
-    # Medidas padrao
-    BW = 0.105   # largura caixa (menor)
-    BH = 0.07    # altura caixa (menor)
-    GAP = 0.01   # espaco entre caixas
+    def img_box(ax, cx, cy, img_file, label, zoom=0.035):
+        path = os.path.join(ICON_DIR, img_file)
+        if os.path.exists(path):
+            img = mpimg.imread(path)
+            im = OffsetImage(img, zoom=zoom)
+            ab = AnnotationBbox(im, (cx, cy + 0.018), frameon=False, zorder=5)
+            ax.add_artist(ab)
+        ax.text(cx, cy - 0.032, label, ha="center", va="top",
+                fontsize=7.5, fontweight="bold", color="#37474F", linespacing=1.1)
 
-    # =========================================
-    # === GCP (topo esquerda) ===
-    # =========================================
-    gcp_x = 0.02; gcp_y = 0.44; gcp_w = 0.47; gcp_h = 0.46
-    area(ax, gcp_x, gcp_y, gcp_w, gcp_h, "",
-         CORES["cloud_gcp"], CORES["bridge"], fontsize=10)
-    ax.text(gcp_x + gcp_w/2, gcp_y + gcp_h - 0.03, "GOOGLE CLOUD PLATFORM",
-            ha="center", va="center", fontsize=12, fontweight="bold", color=CORES["bridge"])
-    ax.text(gcp_x + gcp_w/2, gcp_y + gcp_h - 0.06, "136.115.185.214 | us-central1-a",
-            ha="center", fontsize=8, color="#1565C0")
+    def box(ax, x, y, w, h, title, sub, bg, border, fs=9):
+        r = FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.008",
+                           facecolor=bg, edgecolor=border, linewidth=1.8)
+        ax.add_patch(r)
+        ax.text(x + w/2, y + h * 0.62, title, ha="center", va="center",
+                fontsize=fs, fontweight="bold", color=border)
+        if sub:
+            ax.text(x + w/2, y + h * 0.28, sub, ha="center", va="center",
+                    fontsize=6.5, color="#78909C")
 
-    # Linha 1 GCP: Mosquitto -> Bridge -> InfluxDB
-    r1y = 0.74
-    gcp_c1x = 0.05
-    gcp_c2x = gcp_c1x + BW + GAP
-    gcp_c3x = gcp_c2x + BW + GAP
+    def cloud(ax, x, y, w, h, title, sub, bg, border):
+        r = FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.015",
+                           facecolor=bg, edgecolor=border, linewidth=2.8)
+        ax.add_patch(r)
+        ax.text(x + w/2, y + h - 0.015, title, ha="center", va="top",
+                fontsize=12, fontweight="bold", color=border)
+        ax.text(x + w/2, y + h - 0.042, sub, ha="center", va="top",
+                fontsize=7.5, color=border, alpha=0.7)
 
-    caixa(ax, gcp_c1x, r1y, BW, BH, "Mosquitto", "Porta 1883",
-          CORES["mqtt_bg"], CORES["mqtt"], fontsize=8)
-    caixa(ax, gcp_c2x, r1y, BW, BH, "Python Bridge", "MQTT to InfluxDB",
-          CORES["bridge_bg"], CORES["bridge"], fontsize=8)
-    caixa(ax, gcp_c3x, r1y, BW, BH, "InfluxDB", "Porta 8086",
-          CORES["db_bg"], CORES["db"], fontsize=8)
+    def arr(ax, x1, y1, x2, y2, c="#546E7A", lw=1.5, dash=False):
+        ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
+                    arrowprops=dict(arrowstyle="-|>", color=c, lw=lw,
+                                    linestyle="--" if dash else "-"))
 
-    seta(ax, gcp_c1x + BW, r1y + BH/2, gcp_c2x, r1y + BH/2, CORES["seta"])
-    seta(ax, gcp_c2x + BW, r1y + BH/2, gcp_c3x, r1y + BH/2, CORES["seta"])
+    def darr(ax, x1, y1, x2, y2, c="#546E7A", lw=2):
+        ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
+                    arrowprops=dict(arrowstyle="<|-|>", color=c, lw=lw))
 
-    # Linha 2 GCP: Injetor | (vazio) | Grafana
-    r2y = 0.64
-    caixa(ax, gcp_c1x, r2y, BW, BH, "Injetor de\nFalhas", "stop/start",
-          CORES["injetor_bg"], CORES["injetor"], fontsize=8)
-    caixa(ax, gcp_c3x, r2y, BW, BH, "Grafana", "Porta 3000",
-          CORES["visual_bg"], CORES["visual"], fontsize=8)
+    # ========== TITULO ==========
+    ax.text(0.50, 0.98, "Arquitetura do Sistema", ha="center", va="top",
+            fontsize=20, fontweight="bold", color="#263238")
+    ax.text(0.50, 0.015, "Avaliacao de Desempenho de Protocolos IoT Aplicados no Contexto Medico  |  CIn/UFPE  |  Joao Lucas Veloso",
+            ha="center", va="bottom", fontsize=8, color="#9E9E9E")
 
-    seta(ax, gcp_c1x + BW/2, r2y + BH, gcp_c1x + BW/2, r1y, CORES["injetor"], tracejada=True)
-    seta(ax, gcp_c3x + BW/2, r1y, gcp_c3x + BW/2, r2y + BH, CORES["seta"])
+    B = 0.075; H = 0.055
 
-    # Linha 3 GCP: Sync
-    r3y = 0.48
-    caixa(ax, gcp_c1x, r3y, BW, BH, "InfluxDB Sync", "sync_influx.py",
-          "#E8EAF6", "#3F51B5", fontsize=8)
+    # ====================================================================
+    # CAMADA ESQUERDA: SENSORES + PROTOCOLOS
+    # ====================================================================
+    sensor_area = FancyBboxPatch((0.02, 0.50), 0.11, 0.28, boxstyle="round,pad=0.008",
+                                  facecolor="#E8F5E9", edgecolor="#43A047", linewidth=1.5, alpha=0.5)
+    ax.add_patch(sensor_area)
+    ax.text(0.075, 0.765, "SENSORES", ha="center", fontsize=8, fontweight="bold", color="#2E7D32")
 
-    # =========================================
-    # === AWS (topo direita) ===
-    # =========================================
-    aws_x = 0.51; aws_y = 0.44; aws_w = 0.47; aws_h = 0.46
-    area(ax, aws_x, aws_y, aws_w, aws_h, "",
-         CORES["cloud_aws"], "#F57F17", fontsize=10)
-    ax.text(aws_x + aws_w/2, aws_y + aws_h - 0.03, "AMAZON WEB SERVICES",
-            ha="center", va="center", fontsize=12, fontweight="bold", color="#F57F17")
-    ax.text(aws_x + aws_w/2, aws_y + aws_h - 0.06, "23.21.181.24 | us-east-1",
-            ha="center", fontsize=8, color="#F57F17")
+    box(ax, 0.033, 0.68, B, H, "ESP32", "DevKit-C V4", "#C8E6C9", "#2E7D32", 8)
+    box(ax, 0.033, 0.60, B, H, "DHT22", "Temp/Umidade", "#C8E6C9", "#2E7D32", 8)
+    box(ax, 0.033, 0.52, B, H, "Simulado", "FC / SpO2", "#C8E6C9", "#2E7D32", 8)
 
-    # Linha 1 AWS: Mosquitto -> Bridge -> InfluxDB
-    aws_c1x = 0.54
-    aws_c2x = aws_c1x + BW + GAP
-    aws_c3x = aws_c2x + BW + GAP
+    proto_area = FancyBboxPatch((0.145, 0.56), 0.09, 0.16, boxstyle="round,pad=0.008",
+                                 facecolor="#EDE7F6", edgecolor="#5C6BC0", linewidth=1.2, alpha=0.4)
+    ax.add_patch(proto_area)
+    ax.text(0.19, 0.71, "PROTOCOLO", ha="center", fontsize=7.5, fontweight="bold", color="#5C6BC0")
+    img_box(ax, 0.19, 0.64, "wifi.png", "WiFi / MQTT", zoom=0.12)
 
-    caixa(ax, aws_c1x, r1y, BW, BH, "Mosquitto", "Porta 1883",
-          CORES["mqtt_bg"], CORES["mqtt"], fontsize=8)
-    caixa(ax, aws_c2x, r1y, BW, BH, "Python Bridge", "MQTT to InfluxDB",
-          CORES["bridge_bg"], CORES["bridge"], fontsize=8)
-    caixa(ax, aws_c3x, r1y, BW, BH, "InfluxDB", "Porta 8086",
-          CORES["db_bg"], CORES["db"], fontsize=8)
+    arr(ax, 0.033 + B, 0.71, 0.165, 0.65, "#43A047", lw=1.8)
 
-    seta(ax, aws_c1x + BW, r1y + BH/2, aws_c2x, r1y + BH/2, CORES["seta"])
-    seta(ax, aws_c2x + BW, r1y + BH/2, aws_c3x, r1y + BH/2, CORES["seta"])
+    # ====================================================================
+    # CLOUD GCP (centro-esquerda)
+    # ====================================================================
+    gx, gy, gw, gh = 0.26, 0.46, 0.28, 0.44
+    cloud(ax, gx, gy, gw, gh, "Google Cloud Platform",
+          "136.115.185.214 | us-central1", "#E3F2FD", "#1565C0")
 
-    # Linha 2 AWS: Grafana (alinhado)
-    caixa(ax, aws_c3x, r2y, BW, BH, "Grafana", "Porta 3000",
-          CORES["visual_bg"], CORES["visual"], fontsize=8)
-    seta(ax, aws_c3x + BW/2, r1y, aws_c3x + BW/2, r2y + BH, CORES["seta"])
+    c1 = gx + 0.065; c2 = gx + 0.20
+    img_box(ax, c1, 0.82, "mosquitto.png", "Mosquitto\n:1883", zoom=0.15)
+    img_box(ax, c2, 0.82, "bridge.png", "Bridge\nMQTT\u2192Influx", zoom=0.10)
+    img_box(ax, c1, 0.68, "influxdb.png", "InfluxDB\n:8086", zoom=0.11)
+    img_box(ax, c2, 0.68, "grafana.jpg", "Grafana\n:3000", zoom=0.14)
+    box(ax, c1 - B/2, 0.50, B, H, "Injetor", "Falhas", "#FFCDD2", "#B71C1C")
+    box(ax, c2 - B/2, 0.50, B, H, "Sync", "InfluxDB", "#E8EAF6", "#3F51B5")
 
-    # Linha 3 AWS: Sync (alinhado)
-    caixa(ax, aws_c3x, r3y, BW, BH, "InfluxDB Sync", "sync_influx.py",
-          "#E8EAF6", "#3F51B5", fontsize=8)
+    arr(ax, c1 + 0.035, 0.82, c2 - 0.035, 0.82, "#546E7A")
+    arr(ax, c1, 0.77, c1, 0.72, "#546E7A")
+    arr(ax, c2, 0.77, c2, 0.72, "#546E7A")
 
-    # =========================================
-    # === Conexoes entre clouds ===
-    # =========================================
-    bridge_y = r1y + BH + 0.02
-    seta_dupla(ax, gcp_c1x + BW, bridge_y, aws_c1x, bridge_y, CORES["replicacao"], largura=2)
-    ax.text(0.50, bridge_y + 0.012, "MQTT Bridge (Replicacao Bidirecional)",
-            ha="center", fontsize=9, fontweight="bold", color=CORES["replicacao"],
+    # ====================================================================
+    # CLOUD AWS (direita)
+    # ====================================================================
+    ax2, ay, aw2, ah2 = 0.70, 0.46, 0.28, 0.44
+    cloud(ax, ax2, ay, aw2, ah2, "Amazon Web Services",
+          "23.21.181.24 | us-east-1", "#FFF8E1", "#F57F17")
+
+    a1 = ax2 + 0.065; a2 = ax2 + 0.20
+    img_box(ax, a1, 0.82, "mosquitto.png", "Mosquitto\n:1883", zoom=0.15)
+    img_box(ax, a2, 0.82, "bridge.png", "Bridge\nMQTT\u2192Influx", zoom=0.10)
+    img_box(ax, a1, 0.68, "influxdb.png", "InfluxDB\n:8086", zoom=0.11)
+    img_box(ax, a2, 0.68, "grafana.jpg", "Grafana\n:3000", zoom=0.14)
+    box(ax, a1 - B/2, 0.50, B, H, "Sync", "InfluxDB", "#E8EAF6", "#3F51B5")
+
+    arr(ax, a1 + 0.035, 0.82, a2 - 0.035, 0.82, "#546E7A")
+    arr(ax, a1, 0.77, a1, 0.72, "#546E7A")
+    arr(ax, a2, 0.77, a2, 0.72, "#546E7A")
+
+    # ====================================================================
+    # CONEXOES ENTRE CLOUDS
+    # ====================================================================
+    mx = (gx + gw + ax2) / 2
+
+    darr(ax, gx + gw + 0.01, 0.82, ax2 - 0.01, 0.82, "#FF6F00", lw=2.5)
+    ax.text(mx, 0.845, "MQTT Bridge", ha="center", fontsize=8.5, fontweight="bold",
+            color="#FF6F00", bbox=dict(boxstyle="round,pad=0.25", facecolor="white",
+            edgecolor="#FF6F00", linewidth=1.2))
+
+    darr(ax, gx + gw + 0.01, 0.53, ax2 - 0.01, 0.53, "#3F51B5", lw=1.5)
+    ax.text(mx, 0.55, "InfluxDB Sync (5 min)", ha="center", fontsize=7, fontweight="bold",
+            color="#3F51B5", bbox=dict(boxstyle="round,pad=0.2", facecolor="white",
+            edgecolor="#3F51B5", linewidth=1))
+
+    # ====================================================================
+    # WIFI -> CLOUDS
+    # ====================================================================
+    arr(ax, 0.235, 0.69, gx + 0.01, 0.80, "#1565C0", lw=2.5)
+    ax.text(0.245, 0.76, "Primario", ha="center", fontsize=9, fontweight="bold",
+            color="#1565C0", rotation=28,
             bbox=dict(boxstyle="round,pad=0.2", facecolor="white", edgecolor="none", alpha=0.9))
 
-    sync_y = r3y + BH/2
-    seta_dupla(ax, gcp_c1x + BW, sync_y, aws_c3x, sync_y, "#3F51B5", largura=1.5)
-    ax.text(0.50, sync_y + 0.012, "InfluxDB Sync (a cada 5 min)",
-            ha="center", fontsize=8, fontweight="bold", color="#3F51B5",
-            bbox=dict(boxstyle="round,pad=0.2", facecolor="white", edgecolor="none", alpha=0.9))
 
-    # =========================================
-    # === CAMADA DE SENSORES (embaixo esquerda) ===
-    # =========================================
-    bot_h = 0.36
-    area(ax, 0.02, 0.02, 0.28, bot_h, "CAMADA DE SENSORES",
-         CORES["sensor_bg"], CORES["sensor"], fontsize=10)
+    # ====================================================================
+    # CAMADA INFERIOR: METRICAS + ANALISE + LEGENDA
+    # ====================================================================
 
-    caixa(ax, 0.04, 0.25, BW, BH, "ESP32", "DevKit-C V4",
-          "#C8E6C9", CORES["sensor"], fontsize=8)
-    caixa(ax, 0.04 + BW + GAP, 0.25, BW, BH, "DHT22", "Temp / Umidade",
-          "#C8E6C9", CORES["sensor"], fontsize=8)
-    caixa(ax, 0.04, 0.15, BW, BH, "Simulado", "FC | SpO2",
-          "#C8E6C9", CORES["sensor"], fontsize=8)
+    # --- Metricas (embaixo esquerda) ---
+    mr = FancyBboxPatch((0.02, 0.04), 0.22, 0.33, boxstyle="round,pad=0.008",
+                        facecolor="#FAFAFA", edgecolor="#B0BEC5", linewidth=1, linestyle=":")
+    ax.add_patch(mr)
+    ax.text(0.13, 0.35, "Metricas Coletadas (22 campos)", ha="center", fontsize=8,
+            fontweight="bold", color="#37474F")
 
-    mx = 0.04 + BW + GAP + BW/2
-    rect = FancyBboxPatch((0.04 + BW + GAP, 0.06), BW, 0.14, boxstyle="round,pad=0.01",
-                          facecolor="#E8F5E9", edgecolor=CORES["sensor"], linewidth=1, linestyle=":")
-    ax.add_patch(rect)
-    ax.text(mx, 0.175, "Metricas:", ha="center", fontsize=7, fontweight="bold", color=CORES["sensor"])
-    ax.text(mx, 0.15, "Latencia | PDR | RSSI", ha="center", fontsize=6.5, color="#616161")
-    ax.text(mx, 0.125, "Jitter | Disponibilidade", ha="center", fontsize=6.5, color="#616161")
-    ax.text(mx, 0.10, "Consumo | Seq#", ha="center", fontsize=6.5, color="#616161")
-    ax.text(mx, 0.075, "Failover | Recuperacao", ha="center", fontsize=6.5, color="#616161")
-
-    # === PROTOCOLOS (embaixo centro-esquerda) ===
-    area(ax, 0.32, 0.02, 0.13, bot_h, "PROTOCOLOS",
-         CORES["protocolo_bg"], CORES["protocolo"], fontsize=10)
-
-    caixa(ax, 0.335, 0.25, 0.10, BH, "WiFi", "802.11 b/g/n",
-          "#D1C4E9", CORES["protocolo"], fontsize=8)
-    caixa(ax, 0.335, 0.15, 0.10, BH, "LoRaWAN", "(Futuro)",
-          "#E0E0E0", "#9E9E9E", fontsize=8)
-
-    # === CAMADA DE ANALISE (embaixo direita) ===
-    area(ax, 0.47, 0.02, 0.51, bot_h, "ANALISE E RESULTADOS",
-         CORES["analise_bg"], "#7B1FA2", fontsize=10)
-
-    an_c1x = 0.49
-    an_c2x = an_c1x + BW + GAP
-    an_c3x = an_c2x + BW + GAP
-
-    caixa(ax, an_c1x, 0.25, BW, BH, "Monitor de\nEventos", "monitor_eventos.py",
-          CORES["monitor_bg"], CORES["monitor"], fontsize=8)
-    caixa(ax, an_c2x, 0.25, BW, BH, "Export CSV", "Google Drive",
-          "#F3E5F5", "#7B1FA2", fontsize=8)
-    caixa(ax, an_c3x, 0.25, BW, BH, "Python", "Pandas / Matplotlib",
-          "#F3E5F5", "#7B1FA2", fontsize=8)
-
-    caixa(ax, an_c2x, 0.06, 2*BW + GAP, 0.12, "Dissertacao / Artigo",
-          "Analise Estatistica dos Resultados",
-          "#F3E5F5", "#7B1FA2", fontsize=9)
-
-    seta(ax, an_c2x + BW, 0.285, an_c3x, 0.285, "#7B1FA2")
-    seta(ax, an_c3x + BW/2, 0.25, an_c3x + BW/2, 0.18, "#7B1FA2")
-
-    # =========================================
-    # === Setas entre camadas ===
-    # =========================================
-    seta(ax, 0.04 + BW, 0.285, 0.335, 0.285, CORES["seta"], largura=1.5)
-
-    # Primario (Protocolo -> GCP)
-    seta(ax, 0.385, 0.38, gcp_c1x + BW/2, r1y, CORES["mqtt"], largura=2)
-    ax.text(0.20, 0.58, "Primario", ha="center", fontsize=10,
-            fontweight="bold", color=CORES["mqtt"], rotation=60,
-            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="none", alpha=0.9))
-
-    # Failover (Protocolo -> AWS)
-    seta(ax, 0.435, 0.38, aws_c1x + BW/2, r1y, CORES["failover"], tracejada=True, largura=2)
-    ax.text(0.55, 0.58, "Failover", ha="center", fontsize=10,
-            fontweight="bold", color=CORES["failover"], rotation=-55,
-            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="none", alpha=0.9))
-
-    # Monitor -> Clouds
-    seta(ax, an_c1x + BW/2, 0.32, an_c1x + BW/2, 0.44, CORES["monitor"], tracejada=True)
-    ax.text(an_c1x + BW + 0.01, 0.39, "TCP check", ha="left", fontsize=7.5,
-            color=CORES["monitor"], fontweight="bold")
-
-    # === LEGENDA (embaixo esquerda, dentro da area de sensores) ===
-    legend_items = [
-        mpatches.Patch(facecolor="#C8E6C9", edgecolor=CORES["sensor"], label="Sensores"),
-        mpatches.Patch(facecolor="#D1C4E9", edgecolor=CORES["protocolo"], label="Protocolos"),
-        mpatches.Patch(facecolor=CORES["mqtt_bg"], edgecolor=CORES["mqtt"], label="Broker MQTT"),
-        mpatches.Patch(facecolor=CORES["db_bg"], edgecolor=CORES["db"], label="Banco de Dados"),
-        mpatches.Patch(facecolor=CORES["visual_bg"], edgecolor=CORES["visual"], label="Visualizacao"),
-        mpatches.Patch(facecolor=CORES["bridge_bg"], edgecolor=CORES["bridge"], label="Processamento"),
-        mpatches.Patch(facecolor=CORES["injetor_bg"], edgecolor=CORES["injetor"], label="Injecao de Falhas"),
-        mpatches.Patch(facecolor=CORES["monitor_bg"], edgecolor=CORES["monitor"], label="Monitoramento"),
+    metrics = [
+        "Temperatura / Umidade / FC / SpO2",
+        "RSSI / Consumo / Latencia / Jitter",
+        "PDR / Disponibilidade / Seq#",
+        "Tempo Failover / Recuperacao",
+        "Pacotes OK/Fail por servidor",
     ]
-    ax.legend(handles=legend_items, loc="lower center", fontsize=7,
-              title="LEGENDA", title_fontsize=8, framealpha=0.95,
-              bbox_to_anchor=(0.50, -0.04), ncol=4)
+    for i, m in enumerate(metrics):
+        ax.text(0.035, 0.31 - i * 0.052, "\u2022 " + m, fontsize=7.5, color="#546E7A")
 
-    # Rodape
-    ax.text(0.5, -0.08, "Mestrado em Ciencia da Computacao - CIn/UFPE\n"
-            "Joao Lucas Veloso | Orientador: Prof. Eduardo Tavares | Coorientador: Thiago Valentim",
-            ha="center", fontsize=8, color="#9E9E9E")
+    # --- Analise (embaixo centro) ---
+    anr = FancyBboxPatch((0.26, 0.04), 0.36, 0.33, boxstyle="round,pad=0.008",
+                         facecolor="#F3E5F5", edgecolor="#7B1FA2", linewidth=1.5, alpha=0.4)
+    ax.add_patch(anr)
+    ax.text(0.44, 0.35, "ANALISE E RESULTADOS", ha="center", fontsize=8.5,
+            fontweight="bold", color="#7B1FA2")
+
+    box(ax, 0.28, 0.25, B, H, "Monitor", "Eventos", "#C8E6C9", "#2E7D32")
+    box(ax, 0.38, 0.25, B, H, "Export", "CSV", "#F3E5F5", "#7B1FA2")
+    box(ax, 0.50, 0.25, B, H, "Python", "Matplotlib", "#F3E5F5", "#7B1FA2")
+
+    arr(ax, 0.28 + B, 0.278, 0.38, 0.278, "#7B1FA2")
+    arr(ax, 0.38 + B, 0.278, 0.50, 0.278, "#7B1FA2")
+
+    art = FancyBboxPatch((0.33, 0.06), 0.22, 0.065, boxstyle="round,pad=0.008",
+                         facecolor="#E1BEE7", edgecolor="#7B1FA2", linewidth=1.5)
+    ax.add_patch(art)
+    ax.text(0.44, 0.093, "Dissertacao / Artigo", ha="center", fontsize=9,
+            fontweight="bold", color="#4A148C")
+
+    arr(ax, 0.44, 0.25, 0.44, 0.125, "#7B1FA2")
+
+    arr(ax, 0.28 + B/2, 0.25 + H, 0.28 + B/2, gy, "#2E7D32", dash=True)
+    ax.text(0.34, gy - 0.01, "TCP check", ha="left", fontsize=6.5,
+            color="#2E7D32", fontweight="bold")
+
+    # --- Legenda (embaixo direita) ---
+    leg_area = FancyBboxPatch((0.66, 0.06), 0.32, 0.12, boxstyle="round,pad=0.008",
+                               facecolor="#FAFAFA", edgecolor="#CFD8DC", linewidth=1)
+    ax.add_patch(leg_area)
+    ax.text(0.82, 0.165, "Legenda", ha="center", fontsize=8, fontweight="bold", color="#546E7A")
+
+    items = [
+        ("#E0F7FA", "#00838F", "MQTT Broker"),
+        ("#FFF3E0", "#E65100", "Banco de Dados"),
+        ("#FFEBEE", "#C62828", "Visualizacao"),
+        ("#E3F2FD", "#1565C0", "Processamento"),
+        ("#FFCDD2", "#B71C1C", "Injecao Falhas"),
+        ("#C8E6C9", "#2E7D32", "Monitoramento"),
+    ]
+    for i, (bg, border, label) in enumerate(items):
+        lx = 0.68 + (i % 2) * 0.15
+        ly = 0.135 - (i // 2) * 0.03
+        lr = FancyBboxPatch((lx, ly), 0.012, 0.012, boxstyle="round,pad=0.001",
+                            facecolor=bg, edgecolor=border, linewidth=1)
+        ax.add_patch(lr)
+        ax.text(lx + 0.017, ly + 0.006, label, va="center", fontsize=7, color="#546E7A")
 
     path = os.path.join(OUTPUT_DIR, "01_arquitetura_multicloud.png")
     fig.savefig(path, dpi=300, bbox_inches="tight", facecolor="white")
