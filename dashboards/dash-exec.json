@@ -1,0 +1,44 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 0,
+  "schemaVersion": 39,
+  "tags": ["executivo", "iot", "doe"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "10s",
+  "timepicker": {},
+  "title": "IoT Saude - Visao Executiva",
+  "uid": "iot-exec",
+  "version": 1,
+  "panels": [
+    {
+      "id": 1,
+      "type": "gapit-htmlgraphics-panel",
+      "title": "",
+      "transparent": true,
+      "gridPos": { "h": 22, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PCC52D03280B7034C" },
+      "targets": [
+        { "refId": "STATUS", "format": "table", "datasource": { "type": "grafana-postgresql-datasource", "uid": "PCC52D03280B7034C" }, "rawQuery": true, "rawSql": "SELECT DISTINCT ON (servico) servico, cloud, status FROM eventos_disponibilidade ORDER BY servico, ts DESC" },
+        { "refId": "PROTO", "format": "table", "datasource": { "type": "grafana-postgresql-datasource", "uid": "PCC52D03280B7034C" }, "rawQuery": true, "rawSql": "SELECT protocolo, count(*) AS n, round(avg((fields->>'latencia_ms')::numeric),1) AS lat, round(avg((fields->>'pdr')::numeric),3) AS pdr, round(avg((fields->>'jitter_ms')::numeric),1) AS jitter, round(avg((fields->>'rssi')::numeric),1) AS rssi FROM metricas_iot WHERE time > now() - interval '1 hour' AND protocolo IN ('wifi','lorawan','6lowpan') GROUP BY protocolo ORDER BY protocolo" }
+      ],
+      "options": {
+        "add100Percentage": true,
+        "centerAlignContent": false,
+        "overflow": "auto",
+        "renderOnMount": true,
+        "reloadOnDashboardRefresh": true,
+        "panelupdateOnMount": true,
+        "dynamicData": true,
+        "dynamicFieldDisplayValues": false,
+        "dynamicHtmlProps": false,
+        "codeData": "{}",
+        "html": "<div class='wrap'><div class='hdr'><div><div class='htitle'>IoT Saude &mdash; Arquitetura Multi-Cloud</div><div class='hsub'>Disponibilidade &amp; desempenho da comunicacao &middot; DoE / SPN &middot; GCP + AWS</div></div><div class='brand'>CIn / UFPE</div></div><div class='sec'>Servicos monitorados</div><div id='svc' class='grid svc'></div><div class='sec'>Desempenho por tecnologia de comunicacao (ultima 1h)</div><div id='proto' class='grid proto'></div><div id='foot' class='foot'></div></div>",
+        "css": ".wrap{font-family:Inter,Segoe UI,Roboto,Helvetica,sans-serif;color:#e8eef7;padding:2px 6px} .hdr{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#0b3d91,#1f6feb);border-radius:16px;padding:20px 24px;box-shadow:0 8px 24px rgba(0,0,0,.4)} .htitle{font-size:25px;font-weight:800;letter-spacing:.3px} .hsub{font-size:13px;opacity:.9;margin-top:5px} .brand{font-size:13px;font-weight:700;opacity:.85;border:1px solid rgba(255,255,255,.4);border-radius:10px;padding:8px 12px} .sec{font-size:12px;text-transform:uppercase;letter-spacing:1.6px;opacity:.6;margin:20px 4px 12px} .grid{display:grid;gap:14px} .svc{grid-template-columns:repeat(4,1fr)} .proto{grid-template-columns:repeat(3,1fr)} .card{background:#12171f;border:1px solid #222b36;border-radius:16px;padding:18px 20px;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:transform .15s} .card:hover{transform:translateY(-2px)} .cname{font-size:15px;font-weight:700} .cloud{font-size:11px;opacity:.55;margin-top:3px;letter-spacing:1px} .pill{display:inline-flex;align-items:center;margin-top:14px;padding:7px 15px;border-radius:22px;font-weight:800;font-size:13px} .up{background:rgba(63,185,80,.15);color:#3fb950;border:1px solid #2ea043} .down{background:rgba(248,81,73,.15);color:#f85149;border:1px solid #da3633} .dot{height:9px;width:9px;border-radius:50%;display:inline-block;margin-right:8px} .pcard{position:relative;overflow:hidden} .accent{position:absolute;top:0;left:0;height:5px;width:100%} .pname{font-size:19px;font-weight:800;margin-bottom:6px} .metric{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-top:9px;opacity:.92} .metric b{font-weight:800;font-size:14px} .bar{height:8px;border-radius:5px;background:#222b36;margin-top:6px;overflow:hidden} .bar>span{display:block;height:100%;border-radius:5px} .muted{opacity:.5;font-size:11px;margin-top:14px} .foot{text-align:right;opacity:.4;font-size:11px;margin-top:18px}",
+        "onInit": "",
+        "onRender": "const series=(data&&data.series)||[];const fv=f=>{let v=f.values;if(v&&typeof v.toArray==='function')v=v.toArray();return v;};const asObj=fr=>{const o={};fr.fields.forEach(f=>o[f.name]=fv(f));return o;};let S=null,P=null;series.forEach(fr=>{const n=fr.fields.map(f=>f.name);if(n.indexOf('servico')>=0)S=asObj(fr);if(n.indexOf('protocolo')>=0)P=asObj(fr);});const q=s=>htmlNode.querySelector(s);if(S&&q('#svc')){let h='';for(let i=0;i<S.servico.length;i++){const up=(S.status[i]==='UP');h+=`<div class='card'><div class='cname'>${S.servico[i]}</div><div class='cloud'>${(S.cloud[i]||'').toUpperCase()}</div><div class='pill ${up?'up':'down'}'><span class='dot' style='background:${up?'#3fb950':'#f85149'}'></span>${S.status[i]}</div></div>`;}q('#svc').innerHTML=h;}if(P&&q('#proto')){const col={wifi:'#3fb950',lorawan:'#f0883e','6lowpan':'#58a6ff'};const nm={wifi:'WiFi',lorawan:'LoRaWAN','6lowpan':'6LoWPAN'};let h='';for(let i=0;i<P.protocolo.length;i++){const p=P.protocolo[i];const c=col[p]||'#8b949e';const pdr=Number(P.pdr[i]||0);h+=`<div class='card pcard'><div class='accent' style='background:${c}'></div><div class='pname' style='color:${c}'>${nm[p]||p}</div><div class='metric'><span>Latencia</span><b>${P.lat[i]} ms</b></div><div class='metric'><span>Jitter</span><b>${P.jitter[i]} ms</b></div><div class='metric'><span>RSSI</span><b>${P.rssi[i]} dBm</b></div><div class='metric'><span>PDR</span><b>${(pdr*100).toFixed(1)}%</b></div><div class='bar'><span style='width:${(pdr*100).toFixed(1)}%;background:${c}'></span></div><div class='muted'>${P.n[i]} amostras</div></div>`;}q('#proto').innerHTML=h;}const ft=q('#foot');if(ft)ft.textContent='Atualizado '+new Date().toLocaleString();"
+      }
+    }
+  ]
+}

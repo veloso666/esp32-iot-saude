@@ -1,0 +1,123 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "tags": ["infra", "observabilidade", "iot"],
+  "templating": { "list": [] },
+  "time": { "from": "now-3h", "to": "now" },
+  "refresh": "10s",
+  "timepicker": {},
+  "title": "IoT Saude - Infra & Observabilidade",
+  "uid": "iot-infra",
+  "version": 2,
+  "panels": [
+    {
+      "id": 10,
+      "type": "gapit-htmlgraphics-panel",
+      "title": "",
+      "transparent": true,
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "add100Percentage": true, "centerAlignContent": false, "overflow": "hidden",
+        "renderOnMount": true, "reloadOnDashboardRefresh": false, "panelupdateOnMount": true,
+        "dynamicData": false, "dynamicFieldDisplayValues": false, "dynamicHtmlProps": false, "codeData": "{}",
+        "html": "<div class='bnr'><div><div class='bt'>Infraestrutura &amp; Observabilidade</div><div class='bs'>Disponibilidade, confiabilidade (MTBF / MTTR) e recursos &middot; GCP + AWS</div></div><div class='bb'>CIn / UFPE</div></div>",
+        "css": ".bnr{display:flex;align-items:center;justify-content:space-between;font-family:Inter,Segoe UI,Roboto,sans-serif;color:#e8eef7;background:linear-gradient(135deg,#134e2e,#1f8a4c);border-radius:16px;padding:18px 24px;box-shadow:0 8px 24px rgba(0,0,0,.4)} .bt{font-size:24px;font-weight:800;letter-spacing:.3px} .bs{font-size:13px;opacity:.9;margin-top:5px} .bb{font-size:13px;font-weight:700;opacity:.85;border:1px solid rgba(255,255,255,.4);border-radius:10px;padding:8px 12px;white-space:nowrap}",
+        "onInit": "", "onRender": ""
+      }
+    },
+    {
+      "id": 11,
+      "type": "gapit-htmlgraphics-panel",
+      "title": "",
+      "transparent": true,
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PCC52D03280B7034C" },
+      "targets": [
+        { "refId": "STATUS", "format": "table", "datasource": { "type": "grafana-postgresql-datasource", "uid": "PCC52D03280B7034C" }, "rawQuery": true, "rawSql": "SELECT DISTINCT ON (servico) servico, cloud, status, ts FROM eventos_disponibilidade ORDER BY servico, ts DESC" }
+      ],
+      "options": {
+        "add100Percentage": true, "centerAlignContent": false, "overflow": "auto",
+        "renderOnMount": true, "reloadOnDashboardRefresh": true, "panelupdateOnMount": true,
+        "dynamicData": true, "dynamicFieldDisplayValues": false, "dynamicHtmlProps": false, "codeData": "{}",
+        "html": "<div id='svc' class='grid svc'></div>",
+        "css": ".grid{display:grid;gap:14px;font-family:Inter,Segoe UI,Roboto,sans-serif;color:#e8eef7} .svc{grid-template-columns:repeat(4,1fr)} .card{background:#12171f;border:1px solid #222b36;border-radius:16px;padding:18px 20px;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:transform .15s} .card:hover{transform:translateY(-2px)} .cname{font-size:15px;font-weight:700} .cloud{font-size:11px;opacity:.55;margin-top:3px;letter-spacing:1px} .pill{display:inline-flex;align-items:center;margin-top:14px;padding:7px 15px;border-radius:22px;font-weight:800;font-size:13px} .up{background:rgba(63,185,80,.15);color:#3fb950;border:1px solid #2ea043} .down{background:rgba(248,81,73,.15);color:#f85149;border:1px solid #da3633} .dot{height:9px;width:9px;border-radius:50%;display:inline-block;margin-right:8px} .since{font-size:11px;opacity:.45;margin-top:10px}",
+        "onInit": "",
+        "onRender": "const series=(data&&data.series)||[];const fv=f=>{let v=f.values;if(v&&typeof v.toArray==='function')v=v.toArray();return v;};const asObj=fr=>{const o={};fr.fields.forEach(f=>o[f.name]=fv(f));return o;};let S=null;series.forEach(fr=>{const n=fr.fields.map(f=>f.name);if(n.indexOf('servico')>=0)S=asObj(fr);});const q=s=>htmlNode.querySelector(s);if(S&&q('#svc')){let h='';for(let i=0;i<S.servico.length;i++){const up=(S.status[i]==='UP');let since='';try{since='desde '+new Date(S.ts[i]).toLocaleString();}catch(e){}h+=`<div class='card'><div class='cname'>${S.servico[i]}</div><div class='cloud'>${(S.cloud[i]||'').toUpperCase()}</div><div class='pill ${up?'up':'down'}'><span class='dot' style='background:${up?'#3fb950':'#f85149'}'></span>${S.status[i]}</div><div class='since'>${since}</div></div>`;}q('#svc').innerHTML=h;}"
+      }
+    },
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Disponibilidade observada no periodo (%)",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-gcp" },
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 3, "min": 0, "max": 100, "thresholds": { "steps": [ { "color": "red", "value": null }, { "color": "yellow", "value": 99 }, { "color": "green", "value": 99.9 } ] } }, "overrides": [] },
+      "options": { "colorMode": "value", "graphMode": "none", "textMode": "value_and_name" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-gcp" }, "expr": "avg_over_time(probe_success[$__range]) * 100", "legendFormat": "{{servico}}", "instant": true }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Latencia de conexao cross-cloud (probe_duration)",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-gcp" },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-gcp" }, "expr": "probe_duration_seconds", "legendFormat": "{{servico}}" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "CPU uso (%) por nuvem",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 18 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-gcp" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-gcp" }, "expr": "100 - (avg by (cloud) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)", "legendFormat": "{{cloud}}" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Memoria disponivel (%)",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 18 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-gcp" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-gcp" }, "expr": "node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100", "legendFormat": "{{cloud}}" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Disco usado na raiz (%)",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 18 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-gcp" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus-gcp" }, "expr": "100 - (node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"} * 100)", "legendFormat": "{{cloud}}" }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Eventos de disponibilidade (UP/DOWN) - base p/ MTBF/MTTR",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 25 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PCC52D03280B7034C" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "showHeader": true },
+      "targets": [
+        { "refId": "A", "format": "table", "datasource": { "type": "grafana-postgresql-datasource", "uid": "PCC52D03280B7034C" }, "rawQuery": true, "rawSql": "SELECT ts, servico, status, round(dur_anterior_s::numeric,1) AS dur_estado_anterior_s FROM eventos_disponibilidade WHERE $__timeFilter(ts) ORDER BY ts DESC" }
+      ]
+    }
+  ]
+}

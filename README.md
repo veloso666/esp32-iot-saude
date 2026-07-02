@@ -1,4 +1,4 @@
-# Avaliacao de Desempenho de Protocolos IoT Aplicados no Contexto Medico
+# Avaliacao de Desempenho e Confiabilidade de Protocolos IoT no Contexto Medico
 
 **Mestrado em Ciencia da Computacao - CIn/UFPE**
 **Joao Lucas Veloso | Orientador: Prof. Eduardo Tavares | Coorientador: Thiago Valentim**
@@ -7,300 +7,185 @@
 
 ## Sobre o Projeto
 
-Este projeto implementa uma arquitetura IoT para monitoramento de dados de saude em tempo real, com foco na **avaliacao de desempenho de protocolos de comunicacao** (WiFi, LoRaWAN) aplicados no contexto medico, a partir de metricas de desempenho e confiabilidade.
+Projeto de mestrado que avalia o **desempenho e a confiabilidade** da comunicacao de
+tecnologias IoT (**WiFi, LoRaWAN, 6LoWPAN**) aplicadas ao monitoramento de saude, sobre
+uma **arquitetura multi-cloud (GCP + AWS)**, usando **Design de Experimentos (DoE)** e
+modelagem em **Redes de Petri Estocasticas (SPN)**.
 
-A solucao utiliza um ESP32 com sensor DHT22 que coleta dados de temperatura e umidade, transmitindo via MQTT para uma infraestrutura **multi-cloud (GCP + AWS)** com:
-
-- **Failover automatico** entre servidores MQTT
-- **Replicacao bidirecional** de dados via MQTT Bridge
-- **Injecao de falhas programatica** para validacao de resiliencia
-- **Monitoramento de eventos** com registro de falhas e reparos
-- **Metricas avancadas de confiabilidade**: jitter, disponibilidade, tempo de failover/recuperacao, deteccao de duplicatas
-
----
-
-## Arquitetura
-
-![Arquitetura Multi-Cloud com Failover e Replicacao](artigo/01_arquitetura_multicloud.png)
+> **Evolucao do projeto:** iniciou como um estudo de caso (ESP32 + WiFi + InfluxDB,
+> apresentado em workshop). Foi reorganizado como um **projeto de experimentos (DoE)** e a
+> infraestrutura migrou para **PostgreSQL + TimescaleDB** com **observabilidade (Prometheus)**
+> e coleta de metricas de confiabilidade (MTBF/MTTR). Os arquivos da fase anterior ficam
+> preservados em [`legacy/`](legacy/).
 
 ---
 
-## Componentes
-
-### Camada de Sensores
-| Componente | Descricao |
-|---|---|
-| **ESP32 DevKit-C V4** | Microcontrolador com WiFi integrado |
-| **DHT22** | Sensor de temperatura e umidade |
-| **GPIO4** | Pino de dados do DHT22 |
-
-### Protocolo de Comunicacao
-| Protocolo | Status |
-|---|---|
-| **WiFi 802.11** | Implementado |
-| **LoRaWAN** | Futuro |
-
-### Infraestrutura Cloud (Multi-Cloud com IPs Estaticos)
-| Servico | Descricao | GCP (136.115.185.214) | AWS (23.21.181.24) |
-|---|---|---|---|
-| **Mosquitto** | Broker MQTT | Porta 1883 | Porta 1883 |
-| **Python Bridge** | MQTT to InfluxDB | Rodando | Rodando |
-| **InfluxDB** | Time Series DB | Porta 8086 | Porta 8086 |
-| **Grafana** | Dashboard | Porta 3000 | Porta 3000 |
-| **MQTT Bridge** | Replicacao bidirecional | Configurado | Configurado |
-
----
-
-## Metricas Coletadas
-
-O ESP32 envia dados em **InfluxDB Line Protocol** via MQTT com **22 campos**:
+## Arquitetura atual (multi-cloud)
 
 ```
-metricas_iot,protocolo=WiFi,dispositivo=ESP32_Real,localizacao=UTI-01,cloud=GCP
-  temperatura=21.7,umidade=69.0,freq_cardiaca=77,saturacao_o2=97,
-  rssi=-66,consumo_ma=160.0,latencia=23,
-  pacotes_enviados=10928,pacotes_confirmados=10926,
-  dht_simulado=0,failovers=2,
-  seq=10928,jitter=3,disponibilidade=99.85,
-  tempo_failover=3200,tempo_recuperacao=62000,
-  ok_gcp=9500,ok_aws=1426,fail_gcp=6,fail_aws=0
+        Dispositivos IoT (WiFi / LoRaWAN / 6LoWPAN)
+                        |
+                    MQTT (1883)
+                        |
+        +---------------+----------------+
+        |                                |
+   [ GCP VM ]  <== bridge MQTT ==>  [ AWS VM ]
+   Mosquitto                         Mosquitto
+   mqtt_to_pg  (ingestor)            mqtt_to_pg
+   PostgreSQL/TimescaleDB            PostgreSQL/TimescaleDB
+   Grafana                           Grafana
+   Prometheus + node/blackbox
+   monitor-disp (MTBF/MTTR)
 ```
 
-### Metricas de Sensores
-| Metrica | Fonte | Descricao |
-|---|---|---|
-| `temperatura` | DHT22 (real) | Temperatura ambiente em Celsius |
-| `umidade` | DHT22 (real) | Umidade relativa em % |
-| `freq_cardiaca` | Simulado | Frequencia cardiaca (bpm) |
-| `saturacao_o2` | Simulado | Saturacao de oxigenio (%) |
+- **Replicacao cross-cloud** via bridge MQTT com prefixo de topico (`aws/`, `gcp/`),
+  garantindo que cada mensagem apareca exatamente uma vez em cada banco (sem loop/duplicacao).
+- **Persistencia**: PostgreSQL + TimescaleDB (substituiu o InfluxDB).
+- **Observabilidade**: Prometheus + node_exporter + blackbox_exporter + Grafana.
+- **Confiabilidade**: servico que registra transicoes UP/DOWN no banco (base para MTBF/MTTR/SPN).
 
-### Metricas de Desempenho
-| Metrica | Fonte | Descricao |
-|---|---|---|
-| `rssi` | ESP32 (real) | Intensidade do sinal WiFi (dBm) |
-| `consumo_ma` | Estimativa | Consumo energetico (mA) |
-| `latencia` | ESP32 (real) | Tempo de envio MQTT (ms) |
-| `jitter` | ESP32 (real) | Variacao absoluta entre latencias consecutivas (ms) |
-| `pacotes_enviados` | ESP32 (real) | Total de pacotes TX |
-| `pacotes_confirmados` | ESP32 (real) | Total de pacotes confirmados (PDR) |
+### Infraestrutura Cloud (IPs estaticos)
 
-### Metricas de Confiabilidade
-| Metrica | Fonte | Descricao |
-|---|---|---|
-| `disponibilidade` | ESP32 (real) | % do tempo em que o sistema esta operando |
-| `tempo_failover` | ESP32 (real) | Tempo da deteccao da falha ate reconexao no backup (ms) |
-| `tempo_recuperacao` | ESP32 (real) | Tempo da falha ate retorno ao servidor primario (ms) |
-| `failovers` | ESP32 (real) | Numero total de trocas de servidor |
-| `seq` | ESP32 (real) | Numero sequencial para deteccao de duplicatas/gaps |
-| `ok_gcp` / `ok_aws` | ESP32 (real) | Pacotes confirmados por servidor |
-| `fail_gcp` / `fail_aws` | ESP32 (real) | Falhas de conexao por servidor |
-| `dht_simulado` | ESP32 | 0 = dado real, 1 = fallback simulado |
+| Servico | Descricao | GCP (35.215.213.80) | AWS (34.238.132.165) |
+| --- | --- | --- | --- |
+| Mosquitto | Broker MQTT + bridge | Porta 1883 | Porta 1883 |
+| mqtt_to_pg | Ingestor MQTT -> PostgreSQL | Rodando | Rodando |
+| PostgreSQL/TimescaleDB | Banco de series temporais | Porta 5432 | Porta 5432 |
+| Grafana | Dashboards | Porta 3000 | Porta 3000 |
+| Prometheus | Coleta de metricas | Porta 9090 (interna) | - |
+| node/blackbox exporter | Metricas de sistema e probes | 9100 / 9115 | 9100 |
 
 ---
 
-## Failover Automatico
+## Design de Experimentos (DoE)
 
-O ESP32 implementa failover automatico entre GCP e AWS:
+**Experimento A** (artigo / estudo de caso): fatorial **2x2**
+(Arquitetura x Injecao de falhas), com WiFi fixo - valida a metodologia e a arquitetura.
 
-1. **Conexao primaria**: Google Cloud Platform (136.115.185.214)
-2. **Apos 3 falhas consecutivas**: troca para AWS (23.21.181.24), mede `tempo_failover`
-3. **A cada 60 segundos**: tenta reconectar ao servidor primario
-4. **Retorno automatico**: quando GCP volta, reconecta e mede `tempo_recuperacao`
-5. **Disponibilidade**: calculada continuamente como `(tempo_operando / tempo_total) * 100`
+**Experimento B** (dissertacao): fatorial **3x2**
+- **Fator A - Tecnologia de comunicacao**: WiFi, LoRaWAN, 6LoWPAN
+- **Fator B - Redundancia**: 1 (sem) / 2 (com)
+- Injecao de falhas = condicao de estresse constante
+- Analise: **ANOVA fatorial** (efeitos de tecnologia, redundancia e interacao)
+- Metricas de desempenho (latencia, jitter, PDR, energia, RSSI/SNR) e de confiabilidade
+  (disponibilidade, tempo de failover/recuperacao, MTBF/MTTR)
 
-### MQTT Bridge (Replicacao)
-
-As VMs possuem **MQTT Bridge** bidirecional, garantindo que dados enviados para uma VM sejam replicados para a outra em tempo real. Topicos replicados:
-- `iot-saude-mestrado/#`
-- `hospital/#`
+A convencao de topicos/tags/metricas MQTT esta em [`CONVENCAO.md`](CONVENCAO.md).
 
 ---
 
-## Injecao de Falhas
+## Camada de dados (PostgreSQL + TimescaleDB)
 
-![Sistema de Injecao de Falhas](artigo/02_injecao_falhas.png)
+Banco **`iot_medico`** - usuario **`iot`** / senha **`iotmestrado`**.
 
-O script `injetor_falhas.py` roda na GCP e simula falhas no broker MQTT baseado no **Algoritmo 6.1 (Falha e Reparo)**, utilizando distribuicao exponencial para gerar tempos aleatorios de:
+- **`metricas_iot`** (hypertable): `time`, `protocolo`, `dispositivo`, `localizacao`,
+  `cloud`, `fields` (jsonb com as metricas).
+- **`eventos_disponibilidade`**: `servico`, `cloud`, `status` (UP/DOWN), `ts`,
+  `dur_anterior_s` - base para MTBF/MTTR.
 
-- **TTF (Time To Failure)**: tempo ate a proxima falha (media configuravel, default 5min)
-- **TTR (Time To Repair)**: tempo de duracao da falha (media configuravel, default 1min)
+### Metricas de confiabilidade (SQL)
 
-```
-sudo python3 injetor_falhas.py --tempo-max 34 --ttf-media 300 --ttr-media 60
+```sql
+-- MTTR (tempo medio de reparo)
+SELECT servico, round(avg(dur_anterior_s)::numeric,1) AS mttr_s
+FROM eventos_disponibilidade
+WHERE status='UP' AND dur_anterior_s IS NOT NULL GROUP BY servico;
+
+-- MTTF (tempo medio ate falha)
+SELECT servico, round(avg(dur_anterior_s)::numeric,1) AS mttf_s
+FROM eventos_disponibilidade
+WHERE status='DOWN' AND dur_anterior_s IS NOT NULL GROUP BY servico;
 ```
 
-O injetor para o servico Mosquitto (`systemctl stop`) para simular a falha e reinicia (`systemctl start`) para simular o reparo, registrando todos os eventos em CSV.
+- **MTBF = MTTF + MTTR** · **Disponibilidade = MTTF / (MTTF + MTTR)**
 
 ---
 
-## Monitoramento de Eventos
+## Dashboards (Grafana)
 
-![Sistema de Monitoramento de Eventos](artigo/03_monitoramento_eventos.png)
+Plugin **HTML Graphics** (`gapit-htmlgraphics-panel`). JSONs provisionados em [`dashboards/`](dashboards/).
 
-O script `monitor_eventos.py` monitora o estado dos brokers MQTT (GCP e AWS) via TCP check e registra transicoes de estado baseado no **Algoritmo 6.2 (Monitoramento do Sistema)**:
+| Dashboard | UID | Conteudo |
+| --- | --- | --- |
+| Visao Executiva | `iot-exec` | banner + cards de servico + cards de tecnologia |
+| DoE (Protocolos) | `iot-doe` | cards de tecnologia + graficos (latencia, PDR, jitter, RSSI) + tabela protocolo x redundancia |
+| Infra & Observabilidade | `iot-infra` | disponibilidade, latencia cross-cloud, CPU/RAM/disco, eventos MTBF/MTTR |
 
-```
-python3 monitor_eventos.py --intervalo 2 --log monitor_eventos.csv
-```
-
-Gera CSV com: `timestamp, servidor, evento, duracao_falha_ms, estado_gcp, estado_aws`
-
----
-
-## Resultados dos Experimentos (4 horas)
-
-Experimento de longa duracao com injecao de falhas aleatorias (TTF media: 10min, TTR media: 15min).
-Resultados: **9 falhas no GCP** (primario) e **7 falhas na AWS** (backup) ao longo de **242 minutos**.
-
-### Timeline do Experimento
-
-![Timeline do Experimento](artigo/04_timeline_experimento.png)
-
-### Duracao das Falhas (GCP e AWS)
-
-![Duracao das Falhas](artigo/05_duracao_falhas.png)
-
-### Disponibilidade ao Longo do Tempo
-
-![Disponibilidade](artigo/06_disponibilidade.png)
-
-### Resumo do Experimento
-
-![Resumo do Experimento](artigo/07_resumo_experimento.png)
+Acesso: `http://35.215.213.80:3000` (GCP) e `http://34.238.132.165:3000` (AWS) - login `admin/admin`.
 
 ---
 
-## Pseudocodigos e Diagramas (Artigo)
-
-A pasta `artigo/` contem assets para o artigo cientifico:
-
-| Arquivo | Descricao |
-|---|---|
-| `01_arquitetura_multicloud.png` | Diagrama da arquitetura multi-cloud com failover e replicacao |
-| `02_injecao_falhas.png` | Diagrama do sistema de injecao de falhas com linha do tempo |
-| `03_monitoramento_eventos.png` | Diagrama do sistema de monitoramento com maquina de estados |
-| `04_timeline_experimento.png` | Timeline dos estados dos servidores durante o experimento |
-| `05_duracao_falhas.png` | Grafico de barras com duracao de cada falha injetada |
-| `06_disponibilidade.png` | Grafico de disponibilidade do sistema ao longo do tempo |
-| `07_resumo_experimento.png` | Resumo com grafico pizza e tabela de metricas |
-| `pseudocodigos.tex` | 3 algoritmos em LaTeX: Failover Multi-Cloud, Injecao de Falhas, Monitoramento |
-| `diagrama_arquitetura.md` | Diagramas em Mermaid: arquitetura completa, fluxo de dados, sequencia de falha |
-
----
-
-## Estrutura dos Arquivos
+## Estrutura dos arquivos
 
 ```
 esp32-iot-saude/
-├── esp32-iot-saude.ino      # Firmware ESP32 (failover + 22 metricas)
-├── injetor_falhas.py        # Injecao de falhas (Algoritmo 6.1)
-├── monitor_eventos.py       # Monitoramento de eventos (Algoritmo 6.2)
-├── mqtt_to_influx_aws.py    # Python Bridge (MQTT -> InfluxDB) para AWS
-├── setup-aws.sh             # Script de instalacao da stack na EC2 AWS
-├── sync_influx.py           # Sync de dados entre InfluxDBs (gap-filling)
-├── check_sync.py            # Verificacao de consistencia entre InfluxDBs
-├── setup_grafana.py         # Configuracao automatica do Grafana via API
-├── gerar_graficos_analise.py # Gera graficos de analise dos experimentos
-├── pinagem.txt              # Referencia de pinagem ESP32 + DHT22
-├── gerar_diagramas.py       # Gera diagramas PNG para o artigo (Matplotlib)
-├── monitor_eventos.csv      # Log de eventos do experimento
-├── README.md
-├── artigo/
-│   ├── 01_arquitetura_multicloud.png  # Diagrama de arquitetura
-│   ├── 02_injecao_falhas.png          # Diagrama de injecao de falhas
-│   ├── 03_monitoramento_eventos.png   # Diagrama de monitoramento
-│   ├── 04_timeline_experimento.png    # Timeline dos estados dos servidores
-│   ├── 05_duracao_falhas.png          # Duracao de cada falha injetada
-│   ├── 06_disponibilidade.png         # Disponibilidade ao longo do tempo
-│   ├── 07_resumo_experimento.png      # Resumo do experimento
-│   ├── pseudocodigos.tex              # Algoritmos em LaTeX
-│   └── diagrama_arquitetura.md        # Diagramas Mermaid
-└── dht_scan/
-    └── dht_scan.ino         # Utilitario: scanner de GPIOs para DHT22
+├── esp32-iot-saude.ino          # Firmware ESP32 (WiFi + metricas)
+├── setup-pg.sh                  # Provisiona PostgreSQL + TimescaleDB + ingestor
+├── mqtt_to_pg.py                # Ingestor MQTT -> PostgreSQL
+├── sim_sensor.py                # Simulador dos 3 protocolos (valida pipeline sem hardware)
+├── monitor_disponibilidade.py   # Registrador UP/DOWN (MTBF/MTTR)
+├── CONVENCAO.md                 # Convencao de topicos/metricas + fatores do DoE
+├── PROJETO_INFRA.md             # Documentacao completa da infraestrutura
+├── pinagem.txt                  # Pinagem ESP32 + DHT22
+├── gerar_diagramas.py           # Gera diagramas do artigo
+├── gerar_graficos_analise.py    # Gera graficos de analise
+├── dashboards/                  # JSONs dos dashboards Grafana
+│   ├── dash-exec.json
+│   ├── dash-doe.json
+│   └── dash-infra.json
+├── artigo/                      # Assets do artigo (diagramas, pseudocodigos)
+├── dht_scan/                    # Utilitario: scanner de GPIOs para DHT22
+└── legacy/                      # Fase anterior (InfluxDB / estudo de caso)
+    ├── setup-aws.sh
+    ├── mqtt_to_influx_aws.py
+    ├── sync_influx.py
+    ├── check_sync.py
+    ├── setup_grafana.py
+    ├── injetor_falhas.py
+    ├── monitor_eventos.py
+    └── monitor_eventos*.csv
 ```
 
 ---
 
-## Pinagem - ESP32 + DHT22
+## Como usar
 
-```
-ESP32 3V3    ---> DHT22 pino 1 (VCC)
-ESP32 GPIO4  ---> DHT22 pino 2 (DAT) + resistor 10k pull-up (opcional)
-ESP32 GND    ---> DHT22 pino 4 (GND)
-```
+### Provisionar uma VM (PostgreSQL + ingestor)
 
----
-
-## Como Usar
-
-### Pre-requisitos
-- Arduino IDE com suporte ESP32
-- Bibliotecas: `PubSubClient`, `DHT sensor library` (Adafruit)
-- Python 3 (para injetor e monitor)
-
-### 1. Configurar WiFi
-Editar `esp32-iot-saude.ino`:
-```cpp
-const char* ssid     = "SEU_WIFI";
-const char* password = "SUA_SENHA";
-```
-
-### 2. Upload para ESP32
-1. Conectar ESP32 via USB
-2. Selecionar placa: **ESP32 Dev Module**
-3. Upload (Ctrl+U)
-4. Serial Monitor em 115200 baud
-
-### 3. Executar Experimento com Injecao de Falhas
-
-**Terminal 1** (PC local) - Monitor de eventos:
 ```bash
-python3 monitor_eventos.py --intervalo 2 --log monitor_eventos.csv
+# PEER_IP = CIDR da nuvem parceira (ex.: 35.215.213.80/32)
+sudo bash setup-pg.sh <PEER_IP>
 ```
 
-**Terminal 2** (SSH na GCP) - Injetor de falhas:
+### Validar o pipeline sem hardware (simulador)
+
 ```bash
-sudo python3 injetor_falhas.py --tempo-max 34 --ttf-media 300 --ttr-media 60
+# publica dados dos 3 protocolos a cada 5s (cloud = gcp|aws)
+python3 sim_sensor.py gcp 5
 ```
 
-**Terminal 3** (Arduino IDE) - Serial Monitor do ESP32 em 115200 baud
+### Coletar disponibilidade (MTBF/MTTR)
 
-### 4. Verificar dados
 ```bash
-# Na VM, ver dados MQTT em tempo real
-mosquitto_sub -t "iot-saude-mestrado/#" -v
-
-# Consultar InfluxDB
-influx -database iot_medico -execute "SELECT * FROM metricas_iot ORDER BY time DESC LIMIT 5"
+python3 monitor_disponibilidade.py   # requer Prometheus com probes blackbox
 ```
 
-### 5. Grafana
-- GCP: `http://136.115.185.214:3000`
-- AWS: `http://23.21.181.24:3000`
+### Firmware ESP32 (WiFi)
+
+1. Arduino IDE com suporte ESP32, bibliotecas `PubSubClient` e `DHT sensor library`.
+2. Editar SSID/senha em `esp32-iot-saude.ino`, selecionar **ESP32 Dev Module** e fazer upload.
+3. Serial Monitor a 115200 baud.
 
 ---
 
-## IPs Estaticos
+## Proximos passos
 
-| Cloud | IP | Tipo |
-|---|---|---|
-| **GCP** | 136.115.185.214 | Static External IP |
-| **AWS** | 23.21.181.24 | Elastic IP |
-
-Os IPs sao fixos e nao mudam ao parar/ligar as VMs.
-
----
-
-## Proximos Passos
-
-- [x] Executar experimentos com injecao de falhas (34 min)
-- [x] Executar experimento longo (4h) com falhas maiores (9 falhas GCP, 7 falhas AWS)
-- [x] Analise estatistica das metricas (Python/Matplotlib)
-- [x] Exportar dados para CSV e gerar graficos para o artigo
-- [x] Deploy do script de sincronizacao InfluxDB entre VMs
-- [x] Configurar Grafana com todas as metricas
-- [ ] Implementar protocolo LoRaWAN para comparativo
-- [ ] Escrita do artigo (14 paginas) com resultados comparativos
+- **6LoWPAN**: nRF52840 DK (border router) + no nRF52840 (SuperMini/XIAO).
+- **LoRaWAN**: modulo Radioenge + gateway.
+- Substituir o simulador pelos dispositivos reais (mesma convencao MQTT).
+- Rodar o **Experimento B (3x2)** e coletar as replicas para a ANOVA.
+- Parametrizar o modelo **SPN** com os MTBF/MTTR medidos.
+- (Opcional) Alertas persistidos, stack LGTM (Loki/Tempo/Mimir), Patroni para HA do PostgreSQL.
 
 ---
 
