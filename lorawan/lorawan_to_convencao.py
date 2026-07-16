@@ -7,7 +7,7 @@ Fluxo:
   Este servico assina esses topicos, extrai metricas (RSSI, SNR, fCnt->PDR,
   jitter, time-on-air->latencia, energia estimada + payload do sensor) e
   REPUBLICA em InfluxDB line protocol no topico:
-      iot/lorawan/<dispositivo>/<localizacao>
+      iot-saude-mestrado/lorawan/<dispositivo>/<localizacao>
   De onde o mqtt_to_pg.py (inscrito em '#') grava no PostgreSQL, no mesmo
   formato dos demais protocolos do DoE.
 
@@ -119,7 +119,7 @@ def on_message(client, userdata, msg):
         field_str = ",".join(f"{k}={v}" for k, v in fields.items())
         line = (f"metricas_iot,protocolo=lorawan,dispositivo={dev_name},"
                 f"localizacao={LOCALIZACAO},cloud={CLOUD} {field_str}")
-        out_topic = f"iot/lorawan/{dev_name}/{LOCALIZACAO}"
+        out_topic = f"iot-saude-mestrado/lorawan/{dev_name}/{LOCALIZACAO}"
         client.publish(out_topic, line, qos=0)
         print(f"[LW] {dev_name} fCnt={fcnt} rssi={rssi} snr={snr} pdr={pdr:.3f} -> {out_topic}", flush=True)
     except Exception as e:
