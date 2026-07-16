@@ -1,5 +1,5 @@
 /* ============================================================
- *  No LoRaWAN - IoT Saude (mestrado)  [RAJADA + ENERGIA REAL]
+ *  No LoRaWAN - IoT Saude (mestrado)  [ENVIO CONTINUO + ENERGIA REAL]
  *  ESP32 + modulo Radioenge LoRaWAN (RD49C) + INA219
  *
  *  Fluxo: confere JOIN -> le sensor -> monta 9 bytes -> AT+SENDB
@@ -46,8 +46,7 @@
 // ---- Parametros do experimento ----
 #define REDUNDANCIA   2        // 1 (sem) ou 2 (com) - fator B do DoE
 #define FPORT         2        // porta de aplicacao do uplink
-#define INTERVALO_MS  1000UL   // alvo: 1s entre envios (rajada p/ coleta DoE)
-#define ALVO_PACOTES  100      // envia pelo menos este tanto e para
+#define INTERVALO_MS  1000UL   // alvo: 1s entre envios (envio continuo, sem limite)
 #define RETRY_BUSY_MS 800UL    // reenvia rapido se o modulo estiver ocupado
 
 Adafruit_INA219 ina219;
@@ -153,8 +152,8 @@ bool enviarUplink() {
 
   if (r.indexOf("TX_OK") >= 0) {
     okCount++;
-    Serial.printf("[TX %u/%u] OK  temp=%.2f bpm=%u spo2=%u red=%d | I=%.1fmA V=%.2fV | ciclo=%.4fmAh total=%.4fmAh\n",
-                  okCount, (unsigned)ALVO_PACOTES, tempC, bpm, spo2, REDUNDANCIA,
+    Serial.printf("[TX %u] OK  temp=%.2f bpm=%u spo2=%u red=%d | I=%.1fmA V=%.2fV | ciclo=%.4fmAh total=%.4fmAh\n",
+                  okCount, tempC, bpm, spo2, REDUNDANCIA,
                   ultCorrente_mA, ultTensao_V, energiaCiclo_mAh, mAh_total);
     return true;
   }
@@ -180,16 +179,10 @@ void setup() {
 
   at("AT+DEUI=?");
   garantirJoin();
-  Serial.printf("[LOOP] coletando %u pacotes (alvo 1s, reenvia se BUSY)...\n",
-                (unsigned)ALVO_PACOTES);
+  Serial.println("[LOOP] envio continuo (alvo 1s, reenvia se BUSY, sem limite)...");
 }
 
 void loop() {
-  if (okCount >= ALVO_PACOTES) {
-    Serial.printf("[FIM] %u pacotes. Energia total medida: %.4f mAh.\n", okCount, mAh_total);
-    esperaAmostrando(60000);
-    return;
-  }
   bool ok = enviarUplink();
   esperaAmostrando(ok ? INTERVALO_MS : RETRY_BUSY_MS);
 }
