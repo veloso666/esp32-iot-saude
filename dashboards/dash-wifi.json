@@ -54,11 +54,113 @@
     {
       "id": 1,
       "type": "stat",
+      "title": "Pacotes enviados",
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 0,
+        "y": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3fb950"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT count(*) AS value FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='wifi'"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Energia total (mAh)",
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 3,
+        "y": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 4,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3fb950"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT sum((fields->>'energia_mah')::float8) AS value FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='wifi'"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
       "title": "Latencia",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 0,
+        "w": 3,
+        "x": 6,
         "y": 4
       },
       "datasource": {
@@ -103,13 +205,13 @@
       ]
     },
     {
-      "id": 2,
+      "id": 4,
       "type": "stat",
       "title": "Jitter",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 4,
+        "w": 3,
+        "x": 9,
         "y": 4
       },
       "datasource": {
@@ -154,13 +256,13 @@
       ]
     },
     {
-      "id": 3,
+      "id": 5,
       "type": "stat",
       "title": "PDR",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 8,
+        "w": 3,
+        "x": 12,
         "y": 4
       },
       "datasource": {
@@ -205,13 +307,13 @@
       ]
     },
     {
-      "id": 4,
+      "id": 6,
       "type": "stat",
       "title": "RSSI",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 12,
+        "w": 3,
+        "x": 15,
         "y": 4
       },
       "datasource": {
@@ -256,13 +358,13 @@
       ]
     },
     {
-      "id": 5,
+      "id": 7,
       "type": "stat",
       "title": "SNR",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 16,
+        "w": 3,
+        "x": 18,
         "y": 4
       },
       "datasource": {
@@ -307,13 +409,13 @@
       ]
     },
     {
-      "id": 6,
+      "id": 8,
       "type": "stat",
-      "title": "Energia",
+      "title": "Energia/pkt (mAh)",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 20,
+        "w": 3,
+        "x": 21,
         "y": 4
       },
       "datasource": {
@@ -323,7 +425,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "none",
-          "decimals": 3,
+          "decimals": 5,
           "color": {
             "mode": "fixed",
             "fixedColor": "#3fb950"
@@ -680,6 +782,108 @@
           },
           "rawQuery": true,
           "rawSql": "SELECT dispositivo, (fields->>'redundancia') AS redundancia, count(*) AS n, round(avg((fields->>'latencia_ms')::numeric),1) AS lat_ms, round(avg((fields->>'jitter_ms')::numeric),1) AS jitter_ms, round(avg((fields->>'pdr')::numeric),3) AS pdr, round(avg((fields->>'energia_mah')::numeric),3) AS energia_mah FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='wifi' GROUP BY dispositivo, redundancia ORDER BY dispositivo, redundancia"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Pacotes enviados (acumulado)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3fb950"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT time AS \"time\", count(*) OVER (ORDER BY time) AS \"Pacotes acumulados\" FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='wifi' ORDER BY time"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "Energia consumida (mAh, acumulado)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3fb950"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT time AS \"time\", sum((fields->>'energia_mah')::float8) OVER (ORDER BY time) AS \"Energia acumulada (mAh)\" FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='wifi' ORDER BY time"
         }
       ]
     }
