@@ -28,8 +28,7 @@ PERFIS = {
 NOS = [
     ("wifi",    "esp32-uti01",    "UTI-01",        2),
     ("wifi",    "esp32-enf03",    "Enfermaria-03", 1),
-    ("lorawan", "lora-leito12",   "Leito-12",      2),
-    ("lorawan", "lora-ambul01",   "Ambulancia-01", 1),
+    # lorawan agora vem do NO REAL (no-uti-01) via ChirpStack -> desativado no simulador
     ("6lowpan", "sixlo-uti02",    "UTI-02",        2),
     ("6lowpan", "sixlo-cc01",     "Centro-Cir-01", 1),
 ]

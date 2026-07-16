@@ -133,6 +133,11 @@ esp32-iot-saude/
 │   ├── dash-exec.json
 │   ├── dash-doe.json
 │   └── dash-infra.json
+├── lorawan/                     # Integracao LoRaWAN (ChirpStack)
+│   ├── no_lorawan_esp32.ino     #   No real: ESP32 + Radioenge -> 7 bytes -> AT+SENDB
+│   ├── lorawan_to_convencao.py  #   Adapter ChirpStack -> convencao MQTT (metricas)
+│   ├── prov_device.py           #   Provisiona o device no ChirpStack (API)
+│   └── LORAWAN_PLANO.md         #   Plano + contrato de payload + credenciais OTAA
 ├── artigo/                      # Assets do artigo (diagramas, pseudocodigos)
 ├── dht_scan/                    # Utilitario: scanner de GPIOs para DHT22
 └── legacy/                      # Fase anterior (InfluxDB / estudo de caso)
@@ -176,12 +181,29 @@ python3 monitor_disponibilidade.py   # requer Prometheus com probes blackbox
 2. Editar SSID/senha em `esp32-iot-saude.ino`, selecionar **ESP32 Dev Module** e fazer upload.
 3. Serial Monitor a 115200 baud.
 
+### LoRaWAN (no real - ChirpStack)
+
+Servidor: **ChirpStack 4** self-hosted na GCP (AU915 sub-banda 2, OTAA, codec JS).
+Gateway: **RAK 7268** em modo Packet Forwarder (Semtech UDP :1700).
+No: **modulo Radioenge LoRaWAN (RD49C)** + ESP32 via UART/AT (GPIO16/17, 3V3).
+
+1. Provisionar o device no ChirpStack: `python3 lorawan/prov_device.py`
+   (usa o DevEUI real `0012F80000003BB8` + AppKey + JoinEUI).
+2. Gravar `lorawan/no_lorawan_esp32.ino` no ESP32 - configura OTAA, faz o join e envia os
+   7 bytes do contrato via `AT+SENDB`.
+3. O servico `lorawan-adapter` (`lorawan/lorawan_to_convencao.py`) converte os uplinks do
+   ChirpStack (RSSI/SNR/PDR/latencia/energia) para o padrao da convencao e grava no PostgreSQL.
+
+> Validado ponta a ponta: join OTAA + uplinks reais gravando em `metricas_iot`.
+> Contrato de payload, comandos AT e credenciais em [`lorawan/LORAWAN_PLANO.md`](lorawan/LORAWAN_PLANO.md).
+
 ---
 
 ## Proximos passos
 
 - **6LoWPAN**: nRF52840 DK (border router) + no nRF52840 (SuperMini/XIAO).
-- **LoRaWAN**: modulo Radioenge + gateway.
+- **LoRaWAN**: **funcionando** (modulo Radioenge + RAK7268 + ChirpStack) - ver [`lorawan/`](lorawan/).
+  Falta trocar o `lerSensor()` do sketch pelo sensor clinico real (bpm/SpO2/temp).
 - Substituir o simulador pelos dispositivos reais (mesma convencao MQTT).
 - Rodar o **Experimento B (3x2)** e coletar as replicas para a ANOVA.
 - Parametrizar o modelo **SPN** com os MTBF/MTTR medidos.
