@@ -41,15 +41,25 @@ function decodeUplink(input) {
   var b = input.bytes;
   var t = (b[1] << 8) | b[2];
   if (t > 32767) t -= 65536;
-  return { data: {
+  var out = {
     seq: b[0],
     temperatura: t / 100.0,
     umidade: b[3],
     bpm: b[4],
     spo2: b[5],
     redundancia: b[6]
-  }};
+  };
+  // payload de 9 bytes: [7-8] = energia medida (INA219) do ciclo anterior, em uAh
+  if (b.length >= 9) {
+    out.energia_med_mah = ((b[7] << 8) | b[8]) / 1000.0;
+  }
+  return { data: out };
 }
+
+// Obs.: a pipeline (adapter lorawan_to_convencao.py) tambem decodifica os bytes
+// [7-8] direto do FRMPayload cru, entao a gravacao da energia medida funciona
+// mesmo sem atualizar este codec no ChirpStack. Atualize aqui apenas para o
+// ChirpStack UI mostrar o campo energia_med_mah decodificado.
 ```
 
 ---

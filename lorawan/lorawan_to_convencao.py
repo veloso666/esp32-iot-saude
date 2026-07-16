@@ -73,9 +73,14 @@ def on_message(client, userdata, msg):
 
         # tamanho do PHYPayload: 13 bytes de overhead + FRMPayload
         frm_len = 0
+        energia_med = None            # energia medida pelo INA219 (mAh), vinda no payload
         if up.get("data"):
             try:
-                frm_len = len(base64.b64decode(up["data"]))
+                raw = base64.b64decode(up["data"])
+                frm_len = len(raw)
+                # bytes [7-8] = carga do ciclo em uAh (0.001 mAh/unidade)
+                if frm_len >= 9:
+                    energia_med = ((raw[7] << 8) | raw[8]) / 1000.0
             except Exception:
                 frm_len = 0
         phy_len = 13 + frm_len
@@ -100,9 +105,12 @@ def on_message(client, userdata, msg):
         total = st["recv"] + st["lost"]
         pdr = (st["recv"] / total) if total > 0 else 1.0
 
-        energia = None
+        energia_est = None
         if lat is not None:
-            energia = TX_CURRENT_MA * (lat / 1000.0) / 3600.0  # mAh por TX
+            energia_est = TX_CURRENT_MA * (lat / 1000.0) / 3600.0  # mAh por TX (estimada por ToA)
+
+        # energia_mah = medida (INA219) quando disponivel, senao estimada
+        energia_final = energia_med if energia_med is not None else energia_est
 
         # monta os campos (line protocol)
         fields = {"pdr": round(pdr, 4), "seq": fcnt}
@@ -110,7 +118,9 @@ def on_message(client, userdata, msg):
         if jitter is not None: fields["jitter_ms"] = round(jitter, 2)
         if rssi is not None: fields["rssi"] = rssi
         if snr is not None: fields["snr"] = snr
-        if energia is not None: fields["energia_mah"] = round(energia, 5)
+        if energia_est is not None: fields["energia_est_mah"] = round(energia_est, 5)
+        if energia_med is not None: fields["energia_med_mah"] = round(energia_med, 5)
+        if energia_final is not None: fields["energia_mah"] = round(energia_final, 5)
         for k in ("temperatura", "umidade", "bpm", "spo2", "redundancia"):
             if k in obj:
                 fields[k] = obj[k]
