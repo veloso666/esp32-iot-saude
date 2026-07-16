@@ -886,68 +886,6 @@
           "rawSql": "SELECT time AS \"time\", sum((fields->>'energia_mah')::float8) OVER (ORDER BY time) AS \"Energia acumulada (mAh)\" FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='lorawan' ORDER BY time"
         }
       ]
-    },
-    {
-      "id": 18,
-      "type": "timeseries",
-      "title": "Energia por pacote: medida (INA219) vs estimada (ToA) - mAh",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 40
-      },
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "PCC52D03280B7034C"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none",
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 12,
-            "lineWidth": 2
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "calcs": [
-            "mean",
-            "max",
-            "min"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "time_series",
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "PCC52D03280B7034C"
-          },
-          "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(time,$__interval), 'Medida (INA219)' AS metric, avg((fields->>'energia_med_mah')::float8) AS value FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='lorawan' GROUP BY 1, metric ORDER BY 1"
-        },
-        {
-          "refId": "B",
-          "format": "time_series",
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "PCC52D03280B7034C"
-          },
-          "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(time,$__interval), 'Estimada (ToA)' AS metric, avg((fields->>'energia_est_mah')::float8) AS value FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='lorawan' GROUP BY 1, metric ORDER BY 1"
-        }
-      ]
     }
   ]
 }
