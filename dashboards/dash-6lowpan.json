@@ -1,0 +1,687 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "tags": [
+    "doe",
+    "iot",
+    "6lowpan"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "refresh": "10s",
+  "timepicker": {},
+  "title": "IoT Saude - 6LoWPAN",
+  "uid": "iot-6lowpan",
+  "version": 1,
+  "panels": [
+    {
+      "id": 100,
+      "type": "gapit-htmlgraphics-panel",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "add100Percentage": true,
+        "centerAlignContent": false,
+        "overflow": "hidden",
+        "renderOnMount": true,
+        "reloadOnDashboardRefresh": false,
+        "panelupdateOnMount": true,
+        "dynamicData": false,
+        "dynamicFieldDisplayValues": false,
+        "dynamicHtmlProps": false,
+        "codeData": "{}",
+        "html": "<div class='bnr'><div><div class='bt'>6LoWPAN</div><div class='bs'>Desempenho e confiabilidade &middot; arquitetura IoT multi-cloud (GCP + AWS)</div></div><div class='bb'>DoE &middot; CIn/UFPE</div></div>",
+        "css": ".bnr{display:flex;align-items:center;justify-content:space-between;font-family:Inter,Segoe UI,Roboto,sans-serif;color:#fff;background:linear-gradient(135deg,#58a6ff,#0b1622);border-radius:16px;padding:18px 24px;box-shadow:0 8px 24px rgba(0,0,0,.4)} .bt{font-size:26px;font-weight:800} .bs{font-size:13px;opacity:.92;margin-top:5px} .bb{font-size:12px;font-weight:700;opacity:.9;border:1px solid rgba(255,255,255,.45);border-radius:10px;padding:8px 12px;white-space:nowrap}",
+        "onInit": "",
+        "onRender": ""
+      }
+    },
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Latencia",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#58a6ff"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value_and_name",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT avg((fields->>'latencia_ms')::float8) AS value FROM metricas_iot WHERE time > now() - interval '5 min' AND protocolo='6lowpan'"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Jitter",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#58a6ff"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value_and_name",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT avg((fields->>'jitter_ms')::float8) AS value FROM metricas_iot WHERE time > now() - interval '5 min' AND protocolo='6lowpan'"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "PDR",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 3,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#58a6ff"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value_and_name",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT avg((fields->>'pdr')::float8) AS value FROM metricas_iot WHERE time > now() - interval '5 min' AND protocolo='6lowpan'"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "RSSI",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dBm",
+          "decimals": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#58a6ff"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value_and_name",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT avg((fields->>'rssi')::float8) AS value FROM metricas_iot WHERE time > now() - interval '5 min' AND protocolo='6lowpan'"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "SNR",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#58a6ff"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value_and_name",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT avg((fields->>'snr')::float8) AS value FROM metricas_iot WHERE time > now() - interval '5 min' AND protocolo='6lowpan'"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Energia",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 3,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#58a6ff"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value_and_name",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT avg((fields->>'energia_mah')::float8) AS value FROM metricas_iot WHERE time > now() - interval '5 min' AND protocolo='6lowpan'"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Latencia por dispositivo (ms)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "min"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(time,$__interval), dispositivo AS metric, avg((fields->>'latencia_ms')::float8) AS value FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='6lowpan' GROUP BY 1, metric ORDER BY 1"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "PDR por dispositivo",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "lineWidth": 2
+          },
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "min"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(time,$__interval), dispositivo AS metric, avg((fields->>'pdr')::float8) AS value FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='6lowpan' GROUP BY 1, metric ORDER BY 1"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Jitter por dispositivo (ms)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "min"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(time,$__interval), dispositivo AS metric, avg((fields->>'jitter_ms')::float8) AS value FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='6lowpan' GROUP BY 1, metric ORDER BY 1"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Qualidade de radio (RSSI/SNR)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "min"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(time,$__interval), 'RSSI (dBm)' AS metric, avg((fields->>'rssi')::float8) AS value FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='6lowpan' GROUP BY 1, metric ORDER BY 1"
+        },
+        {
+          "refId": "B",
+          "format": "time_series",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(time,$__interval), 'SNR (dB)' AS metric, avg((fields->>'snr')::float8) AS value FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='6lowpan' GROUP BY 1, metric ORDER BY 1"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Sinais vitais (temp / BPM / SpO2)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "min"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(time,$__interval), 'Temp (C)' AS metric, avg((fields->>'temperatura')::float8) AS value FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='6lowpan' GROUP BY 1, metric ORDER BY 1"
+        },
+        {
+          "refId": "B",
+          "format": "time_series",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(time,$__interval), 'BPM' AS metric, avg((fields->>'bpm')::float8) AS value FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='6lowpan' GROUP BY 1, metric ORDER BY 1"
+        },
+        {
+          "refId": "C",
+          "format": "time_series",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(time,$__interval), 'SpO2 (%)' AS metric, avg((fields->>'spo2')::float8) AS value FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='6lowpan' GROUP BY 1, metric ORDER BY 1"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "table",
+      "title": "Resumo por dispositivo x redundancia",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT dispositivo, (fields->>'redundancia') AS redundancia, count(*) AS n, round(avg((fields->>'latencia_ms')::numeric),1) AS lat_ms, round(avg((fields->>'jitter_ms')::numeric),1) AS jitter_ms, round(avg((fields->>'pdr')::numeric),3) AS pdr, round(avg((fields->>'energia_mah')::numeric),3) AS energia_mah FROM metricas_iot WHERE $__timeFilter(time) AND protocolo='6lowpan' GROUP BY dispositivo, redundancia ORDER BY dispositivo, redundancia"
+        }
+      ]
+    }
+  ]
+}

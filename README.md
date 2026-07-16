@@ -110,6 +110,12 @@ Plugin **HTML Graphics** (`gapit-htmlgraphics-panel`). JSONs provisionados em [`
 | Visao Executiva | `iot-exec` | banner + cards de servico + cards de tecnologia |
 | DoE (Protocolos) | `iot-doe` | cards de tecnologia + graficos (latencia, PDR, jitter, RSSI) + tabela protocolo x redundancia |
 | Infra & Observabilidade | `iot-infra` | disponibilidade, latencia cross-cloud, CPU/RAM/disco, eventos MTBF/MTTR |
+| WiFi | `iot-wifi` | dashboard dedicado (stats + series + sinais vitais + tabela) - so protocolo WiFi |
+| LoRaWAN | `iot-lorawan` | dashboard dedicado - so protocolo LoRaWAN (no real no-uti-01) |
+| 6LoWPAN | `iot-6lowpan` | dashboard dedicado - so protocolo 6LoWPAN |
+
+> Os dashboards combinados (Executiva/DoE/Infra) continuam mostrando os 3 protocolos juntos;
+> os dashboards por protocolo dao o detalhamento individual de cada tecnologia.
 
 Acesso: `http://35.215.213.80:3000` (GCP) e `http://34.238.132.165:3000` (AWS) - login `admin/admin`.
 
