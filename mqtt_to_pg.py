@@ -10,7 +10,10 @@ import paho.mqtt.client as mqtt
 import psycopg2, psycopg2.extras
 
 PG_DSN = "dbname=iot_medico user=iot password=iotmestrado host=localhost"
-MQTT_TOPICS = [("#", 0)]  # inclui topicos locais e os prefixados (aws/, gcp/) vindos do bridge
+# Assina apenas os prefixos do projeto (locais + os prefixados aws/ e gcp/ vindos
+# do bridge). NAO assina '#' de proposito: topicos internos do ChirpStack
+# (application/..., au915_1/gateway/...) sao JSON e poluiriam a tabela.
+MQTT_TOPICS = [("iot-saude-mestrado/#", 0), ("aws/#", 0), ("gcp/#", 0), ("hospital/#", 0)]
 _conn = None
 
 def get_conn():
@@ -54,16 +57,15 @@ def on_message(client, userdata, msg):
     try:
         payload = msg.payload.decode('utf-8')
         parsed = parse_line_protocol(payload)
-        if parsed:
-            meas, tags, fields = parsed
-            if fields:
-                insert(meas, tags, fields)
-                print(f"[PG] {meas} <- {msg.topic} ({len(fields)} campos)", flush=True)
-                return
-        data = json.loads(payload)
-        insert("sensores", {"topic": msg.topic},
-               data if isinstance(data, dict) else {"value": data})
-        print(f"[PG] json <- {msg.topic}", flush=True)
+        # so grava mensagens no formato line-protocol (sim + adapter). Qualquer
+        # outra coisa (ex.: JSON interno do ChirpStack) e ignorada de proposito.
+        if not parsed:
+            return
+        meas, tags, fields = parsed
+        if not fields:
+            return
+        insert(meas, tags, fields)
+        print(f"[PG] {meas} <- {msg.topic} ({len(fields)} campos)", flush=True)
     except Exception as e:
         print(f"[ERRO] {e}", flush=True)
 
