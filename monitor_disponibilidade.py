@@ -35,7 +35,8 @@ def main():
                 "FROM eventos_disponibilidade ORDER BY servico, ts DESC")
     for serv, status, ep in cur.fetchall():
         last[serv] = status
-        last_ts[serv] = ep
+        # PostgreSQL 14+ devolve extract(epoch...) como Decimal; converte p/ float
+        last_ts[serv] = float(ep) if ep is not None else None
     print("[MON] iniciado; estados:", last, flush=True)
     while True:
         try:
@@ -43,7 +44,7 @@ def main():
             now = time.time()
             for serv, (cloud, status) in states.items():
                 if last.get(serv) != status:
-                    dur = (now - last_ts[serv]) if serv in last_ts else None
+                    dur = (now - last_ts[serv]) if last_ts.get(serv) is not None else None
                     cur.execute(
                         "INSERT INTO eventos_disponibilidade (servico, cloud, status, dur_anterior_s) "
                         "VALUES (%s,%s,%s,%s)", (serv, cloud, status, dur))
